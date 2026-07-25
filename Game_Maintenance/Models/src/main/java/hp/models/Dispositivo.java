@@ -5,18 +5,50 @@
 
 package hp.models;
 
+import java.io.Serializable;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+import javax.persistence.Table;
+
 /**
  *
  * @author $Luis Carlos Manjarrez Gonzalez
  */
-public class Dispositivo {
+@Entity
+@Table(name="Dispositivo")
+public class Dispositivo implements Serializable {
     public enum Plataforma {
     XBOX, PLAYSTATION, PC, LAPTOP
     }
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "idDispositivo", nullable = true)
     private Long id; 
-    private String detallesDispositivo, modeloDispositivo;
-    private Long idCliente;
+    
+    @Column(name="detallesDispositivo")
+    private String detallesDispositivo;
+    
+    @Column(name="modeloDispositivo")
+    private String modeloDispositivo;
+    
+//    @OneToOne
+//    @JoinColumn(name = "idUsuario", nullable = true)
+//    private Cliente cliente;
+    
+    @Column(name="plataforma")
+    @Enumerated(EnumType.STRING)
     private Plataforma plataforma;
+    
+    @ManyToOne
+    @JoinColumn(name = "idResumen")
+    private Resumen resumen;
 
     public Dispositivo() {
     }
@@ -45,14 +77,6 @@ public class Dispositivo {
         this.modeloDispositivo = modeloDispositivo;
     }
 
-    public Long getIdCliente() {
-        return idCliente;
-    }
-
-    public void setIdCliente(Long idCliente) {
-        this.idCliente = idCliente;
-    }
-
     public Plataforma getPlataforma() {
         return plataforma;
     }
@@ -61,11 +85,17 @@ public class Dispositivo {
         this.plataforma = plataforma;
     }
 
+    public Resumen getResumen() {
+        return resumen;
+    }
+
+    public void setResumen(Resumen resumen) {
+        this.resumen = resumen;
+    }
+
     @Override
     public String toString() {
-        return "Dispositivo{" + "id=" + id + ", detallesDispositivo=" + detallesDispositivo + ", modeloDispositivo=" + modeloDispositivo + ", idCliente=" + idCliente + ", plataforma=" + plataforma + '}';
+        return "Dispositivo{" + "id=" + id + ", detallesDispositivo=" + detallesDispositivo + ", modeloDispositivo=" + modeloDispositivo + ", plataforma=" + plataforma + ", resumen=" + resumen + '}';
     }
     
-    
-
 }

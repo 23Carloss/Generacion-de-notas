@@ -8,13 +8,12 @@ package hp.models;
 import java.io.Serializable;
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.EnumType;
-import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
+import javax.persistence.OneToOne;
 import javax.persistence.Table;
 
 /**
@@ -22,29 +21,22 @@ import javax.persistence.Table;
  * @author $Luis Carlos Manjarrez Gonzalez
  */
 @Entity
-@Table(name="Trabajo")
-public class Trabajo implements Serializable {
-    public enum TipoTrabajo {
-        REPARACION, DIAGNOSTICO, CHIPEO, INSTALACION_JUEGOS, MANTENIMIENTO
-    }
+@Table(name = "Resumen_Dispositivos")
+public class Resumen_Dispositivos implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "idTrabajo")
+    @Column(name = "dispositivos")
     private Long id;
     
-    
-    @Enumerated(EnumType.STRING)
-    @Column(name="tipoTrabajo")
-    private TipoTrabajo tipoTrabajo;
-    
-    @ManyToOne
-    @JoinColumn(name = "idResumen")
+    @OneToOne
+    @JoinColumn(name="idResumen", nullable = true)
     private Resumen resumen;
     
-    @Column(name="precio")
-    private Double precio;
+    @ManyToOne
+    @JoinColumn(name = "idDispositivo", nullable = true)
+    private Dispositivo dispositivo;
 
-    public Trabajo() {
+    public Resumen_Dispositivos() {
     }
 
     public Long getId() {
@@ -54,22 +46,7 @@ public class Trabajo implements Serializable {
     public void setId(Long id) {
         this.id = id;
     }
-
-    public TipoTrabajo getTipoTrabajo() {
-        return tipoTrabajo;
-    }
-
-    public void setTipoTrabajo(TipoTrabajo tipoTrabajo) {
-        this.tipoTrabajo = tipoTrabajo;
-    }
-
-    public Double getPrecio() {
-        return precio;
-    }
-
-    public void setPrecio(Double precio) {
-        this.precio = precio;
-    }
+    
 
     public Resumen getResumen() {
         return resumen;
@@ -79,13 +56,18 @@ public class Trabajo implements Serializable {
         this.resumen = resumen;
     }
 
+    public Dispositivo getDispositivo() {
+        return dispositivo;
+    }
+
+    public void setDispositivo(Dispositivo dispositivo) {
+        this.dispositivo = dispositivo;
+    }
+
     @Override
     public String toString() {
-        return "Trabajo{" + "id=" + id + ", tipoTrabajo=" + tipoTrabajo + ", resumen=" + resumen + ", precio=" + precio + '}';
+        return "Resumen_Dispositivos{" + "id=" + id + ", resumen=" + resumen + ", dispositivo=" + dispositivo + '}';
     }
-    
-
-   
     
 
 }

@@ -5,15 +5,50 @@
 
 package hp.models;
 
+import java.io.Serializable;
 import java.util.List;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+import javax.persistence.OneToMany;
+import javax.persistence.Table;
 
 /**
  *
  * @author $Luis Carlos Manjarrez Gonzalez
  */
-public class Resumen {
-    private Long id , idCliente, idDispositivo;
-    private String comentariosCliente, descripcionProblema; 
+@Entity
+@Table(name="Resumen")
+public class Resumen implements Serializable {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name="idResumen", nullable = true)
+    private Long id;
+    
+    @ManyToOne
+    @JoinColumn(name = "idCliente", nullable = true)
+    private Cliente cliente;
+    
+//    @OneToOne
+//    @JoinColumn(name = "idResumenDispositivos", nullable = true)
+//    private Resumen_Dispositivos resumen_Dispositivos;
+//    
+    @OneToMany(mappedBy = "resumen")
+    private List<Dispositivo> listaDispositivos; 
+    
+//    la lista de dispositivos la obtendremos de una consulta utilizando el idResumen en la tabla Resumen_Dispositivos
+    
+    @Column(name="comentariosCliente")
+    private String comentariosCliente;
+    
+    @Column(name="descripcionProblema")
+    private String descripcionProblema;
+    
+    @OneToMany(mappedBy = "resumen")
     private List<Trabajo> listaTrabajos;
 
     public Resumen() {
@@ -27,20 +62,12 @@ public class Resumen {
         this.id = id;
     }
 
-    public Long getIdCliente() {
-        return idCliente;
+    public Cliente getCliente() {
+        return cliente;
     }
 
-    public void setIdCliente(Long idCliente) {
-        this.idCliente = idCliente;
-    }
-
-    public Long getIdDispositivo() {
-        return idDispositivo;
-    }
-
-    public void setIdDispositivo(Long idDispositivo) {
-        this.idDispositivo = idDispositivo;
+    public void setCliente(Cliente cliente) {
+        this.cliente = cliente;
     }
 
     public String getComentariosCliente() {
@@ -67,10 +94,21 @@ public class Resumen {
         this.listaTrabajos = listaTrabajos;
     }
 
+    public List<Dispositivo> getListaDispositivos() {
+        return listaDispositivos;
+    }
+
+    public void setListaDispositivos(List<Dispositivo> listaDispositivos) {
+        this.listaDispositivos = listaDispositivos;
+    }
+
     @Override
     public String toString() {
-        return "Resumen{" + "id=" + id + ", idCliente=" + idCliente + ", idDispositivo=" + idDispositivo + ", comentariosCliente=" + comentariosCliente + ", descripcionProblema=" + descripcionProblema + ", listaTrabajos=" + listaTrabajos + '}';
+        return "Resumen{" + "id=" + id + ", cliente=" + cliente + ", listaDispositivos=" + listaDispositivos + ", comentariosCliente=" + comentariosCliente + ", descripcionProblema=" + descripcionProblema + ", listaTrabajos=" + listaTrabajos + '}';
     }
+
     
+
+ 
 
 }
