@@ -7,7 +7,7 @@ package DAOs;
 
 import Exceptions.PersistenciaException;
 import hp.ConexionDB.ManejadorConexiones;
-import hp.models.Dispositivo;
+import hp.models.Trabajo;
 import java.util.List;
 import javax.persistence.EntityManager;
 
@@ -15,37 +15,37 @@ import javax.persistence.EntityManager;
  *
  * @author $Luis Carlos Manjarrez Gonzalez
  */
-public class DispositivoDAO implements IGenericoDAO<Dispositivo, Long> {
+public class TrabajoDAO implements IGenericoDAO<Trabajo, Long> {
 
     @Override
-    public void insertar(Dispositivo dispositivo) throws PersistenciaException {
+    public void insertar(Trabajo trabajo) throws PersistenciaException {
         EntityManager em = ManejadorConexiones.getEntityManager();
         try {
             em.getTransaction().begin();
-            em.persist(dispositivo);
+            em.persist(trabajo);
             em.getTransaction().commit();
         } catch (Exception e) {
             if (em.getTransaction().isActive()) {
                 em.getTransaction().rollback();
             }
-            throw new PersistenciaException("Error al insertar el dispositivo: " + e.getMessage());
+            throw new PersistenciaException("Error al insertar el trabajo: " + e.getMessage());
         } finally {
             em.close();
         }
     }
 
     @Override
-    public void actualizar(Dispositivo dispositivo) throws PersistenciaException {
+    public void actualizar(Trabajo trabajo) throws PersistenciaException {
         EntityManager em = ManejadorConexiones.getEntityManager();
         try {
             em.getTransaction().begin();
-            em.merge(dispositivo);
+            em.merge(trabajo);
             em.getTransaction().commit();
         } catch (Exception e) {
             if (em.getTransaction().isActive()) {
                 em.getTransaction().rollback();
             }
-            throw new PersistenciaException("Error al actualizar el dispositivo: " + e.getMessage());
+            throw new PersistenciaException("Error al actualizar el trabajo: " + e.getMessage());
         } finally {
             em.close();
         }
@@ -56,74 +56,74 @@ public class DispositivoDAO implements IGenericoDAO<Dispositivo, Long> {
         EntityManager em = ManejadorConexiones.getEntityManager();
         try {
             em.getTransaction().begin();
-            Dispositivo dispositivo = em.find(Dispositivo.class, id);
-            if (dispositivo != null) {
-                em.remove(dispositivo);
+            Trabajo trabajo = em.find(Trabajo.class, id);
+            if (trabajo != null) {
+                em.remove(trabajo);
             }
             em.getTransaction().commit();
         } catch (Exception e) {
             if (em.getTransaction().isActive()) {
                 em.getTransaction().rollback();
             }
-            throw new PersistenciaException("Error al eliminar el dispositivo: " + e.getMessage());
+            throw new PersistenciaException("Error al eliminar el trabajo: " + e.getMessage());
         } finally {
             em.close();
         }
     }
 
     @Override
-    public Dispositivo buscarPorId(Long id) throws PersistenciaException {
+    public Trabajo buscarPorId(Long id) throws PersistenciaException {
         EntityManager em = ManejadorConexiones.getEntityManager();
         try {
-            return em.find(Dispositivo.class, id);
+            return em.find(Trabajo.class, id);
         } catch (Exception e) {
-            throw new PersistenciaException("Error al buscar el dispositivo: " + e.getMessage());
+            throw new PersistenciaException("Error al buscar el trabajo: " + e.getMessage());
         } finally {
             em.close();
         }
     }
 
     @Override
-    public List<Dispositivo> listarTodos() throws PersistenciaException {
+    public List<Trabajo> listarTodos() throws PersistenciaException {
         EntityManager em = ManejadorConexiones.getEntityManager();
         try {
-            return em.createQuery("SELECT d FROM Dispositivo d", Dispositivo.class).getResultList();
+            return em.createQuery("SELECT t FROM Trabajo t", Trabajo.class).getResultList();
         } catch (Exception e) {
-            throw new PersistenciaException("Error al listar los dispositivos: " + e.getMessage());
+            throw new PersistenciaException("Error al listar los trabajos: " + e.getMessage());
         } finally {
             em.close();
         }
     }
 
     /**
-     * Lista los dispositivos asociados a un resumen (ticket) en particular.
+     * Lista los trabajos asociados a un resumen (ticket) en particular.
      */
-    public List<Dispositivo> listarPorResumen(Long idResumen) throws PersistenciaException {
+    public List<Trabajo> listarPorResumen(Long idResumen) throws PersistenciaException {
         EntityManager em = ManejadorConexiones.getEntityManager();
         try {
             return em.createQuery(
-                    "SELECT d FROM Dispositivo d WHERE d.resumen.id = :idResumen", Dispositivo.class)
+                    "SELECT t FROM Trabajo t WHERE t.resumen.id = :idResumen", Trabajo.class)
                     .setParameter("idResumen", idResumen)
                     .getResultList();
         } catch (Exception e) {
-            throw new PersistenciaException("Error al listar los dispositivos por resumen: " + e.getMessage());
+            throw new PersistenciaException("Error al listar los trabajos por resumen: " + e.getMessage());
         } finally {
             em.close();
         }
     }
 
     /**
-     * Lista los dispositivos filtrados por plataforma (XBOX, PLAYSTATION, PC, LAPTOP).
+     * Lista los trabajos filtrados por tipo (REPARACION, DIAGNOSTICO, CHIPEO, INSTALACION_JUEGOS, MANTENIMIENTO).
      */
-    public List<Dispositivo> listarPorPlataforma(Dispositivo.Plataforma plataforma) throws PersistenciaException {
+    public List<Trabajo> listarPorTipo(Trabajo.TipoTrabajo tipoTrabajo) throws PersistenciaException {
         EntityManager em = ManejadorConexiones.getEntityManager();
         try {
             return em.createQuery(
-                    "SELECT d FROM Dispositivo d WHERE d.plataforma = :plataforma", Dispositivo.class)
-                    .setParameter("plataforma", plataforma)
+                    "SELECT t FROM Trabajo t WHERE t.tipoTrabajo = :tipo", Trabajo.class)
+                    .setParameter("tipo", tipoTrabajo)
                     .getResultList();
         } catch (Exception e) {
-            throw new PersistenciaException("Error al listar los dispositivos por plataforma: " + e.getMessage());
+            throw new PersistenciaException("Error al listar los trabajos por tipo: " + e.getMessage());
         } finally {
             em.close();
         }
