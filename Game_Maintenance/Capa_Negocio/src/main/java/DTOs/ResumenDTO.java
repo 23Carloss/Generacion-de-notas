@@ -12,12 +12,16 @@ import java.util.List;
  * @author $Luis Carlos Manjarrez Gonzalez
  */
 public class ResumenDTO {
+    public enum ESTADO{
+        EnReparacion, Recibido, EnDiagnostico, ListoParaEntrega, Entregado;
+    }
     private Long id;
     private ClienteDTO cliente;    
     private List<DispositivoDTO> listaDispositivos;     
     private String comentariosCliente;
     private String descripcionProblema;
     private List<TrabajoDTO> listaTrabajos;
+    private ESTADO estado;
 
     public Long getId() {
         return id;
@@ -65,6 +69,14 @@ public class ResumenDTO {
 
     public void setListaTrabajos(List<TrabajoDTO> listaTrabajos) {
         this.listaTrabajos = listaTrabajos;
+    }
+    
+    public ESTADO getEstado() {
+        return this.estado;
+    }
+
+    public void setEstado(ESTADO estado) {
+        this.estado = estado;
     }
 
     

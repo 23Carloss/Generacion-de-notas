@@ -24,6 +24,9 @@ import javax.persistence.Table;
 @Entity
 @Table(name="Resumen")
 public class Resumen implements Serializable {
+    public enum ESTADO{
+        EnReparacion, Recibido, EnDiagnostico, ListoParaEntrega, Entregado;
+    }
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name="idResumen", nullable = true)
@@ -32,11 +35,10 @@ public class Resumen implements Serializable {
     @ManyToOne
     @JoinColumn(name = "idCliente", nullable = true)
     private Cliente cliente;
+
+    @Column(name = "Estado")
+    private ESTADO estado;
     
-//    @OneToOne
-//    @JoinColumn(name = "idResumenDispositivos", nullable = true)
-//    private Resumen_Dispositivos resumen_Dispositivos;
-//    
     @OneToMany(mappedBy = "resumen")
     private List<Dispositivo> listaDispositivos; 
     
@@ -56,6 +58,14 @@ public class Resumen implements Serializable {
 
     public Long getId() {
         return id;
+    }
+
+    public ESTADO getEstado() {
+        return estado;
+    }
+
+    public void setEstado(ESTADO estado) {
+        this.estado = estado;
     }
 
     public void setId(Long id) {
@@ -104,11 +114,9 @@ public class Resumen implements Serializable {
 
     @Override
     public String toString() {
-        return "Resumen{" + "id=" + id + ", cliente=" + cliente + ", listaDispositivos=" + listaDispositivos + ", comentariosCliente=" + comentariosCliente + ", descripcionProblema=" + descripcionProblema + ", listaTrabajos=" + listaTrabajos + '}';
+        return "Resumen{" + "id=" + id + ", cliente=" + cliente + ", estado=" + estado + ", listaDispositivos=" + listaDispositivos + ", comentariosCliente=" + comentariosCliente + ", descripcionProblema=" + descripcionProblema + ", listaTrabajos=" + listaTrabajos + '}';
     }
 
-    
 
- 
 
 }
