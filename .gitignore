@@ -1,1 +1,5 @@
 /Game_Maintenance/Models/target/
+/game-maintenance-frontend/nbproject/private/
+/Game_Maintenance/Capa_Negocio/target/
+/Game_Maintenance/Persistencia/target/
+/Game_Maintenance/Negocio/target/

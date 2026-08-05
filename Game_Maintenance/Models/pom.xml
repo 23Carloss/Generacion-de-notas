@@ -66,5 +66,5 @@
             <type>jar</type>
         </dependency>
     </dependencies>
-    <name>Capa_Modelo</name>
+    <name>Modelo</name>
 </project>
