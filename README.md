@@ -3,7 +3,7 @@ Pasos para iniciar la aplicacion
    Script : CREATE DATABASE ticketsMantenimiento;
    
 3. Correr la clase ManejadorConexiones.java -- Ruta Game_Maintenance\Persistencia\src\main\java\ConexionDB
-  Esta crea las clases en la base de datos directamente
+  Esta crea las tablas y sus relaciones en la base de datos directamente
 
 5. Correr la clase ServerMain.java -- Ruta: Game_Maintenance\Persistencia\src\main\java\ServerMain
    
