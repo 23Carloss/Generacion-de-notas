@@ -61,6 +61,12 @@ public class Resumen implements Serializable {
     
     @OneToMany(mappedBy = "resumen")
     private List<Trabajo> listaTrabajos;
+    
+    @Column(name= "resenaComentario")
+    private String resenaComentario;
+   
+    @Column(name="calificacion")
+    private Integer calificacion;
 
     public Resumen() {
     }
@@ -129,10 +135,25 @@ public class Resumen implements Serializable {
         this.fechaCreacion = fechaCreacion;
     }
 
+    public String getResenaComentario() {
+        return resenaComentario;
+    }
+
+    public void setResenaComentario(String resenaComentario) {
+        this.resenaComentario = resenaComentario;
+    }
+
+    public Integer getCalificacion() {
+        return calificacion;
+    }
+
+    public void setCalificacion(Integer calificacion) {
+        this.calificacion = calificacion;
+    }
+
     @Override
     public String toString() {
-        return "Resumen{" + "id=" + id + ", cliente=" + cliente + ", estado=" + estado + ", fechaCreacion=" + fechaCreacion + ", listaDispositivos=" + listaDispositivos + ", comentariosCliente=" + comentariosCliente + ", descripcionProblema=" + descripcionProblema + ", listaTrabajos=" + listaTrabajos + '}';
+        return "Resumen{" + "id=" + id + ", cliente=" + cliente + ", estado=" + estado + ", fechaCreacion=" + fechaCreacion + ", listaDispositivos=" + listaDispositivos + ", comentariosCliente=" + comentariosCliente + ", descripcionProblema=" + descripcionProblema + ", listaTrabajos=" + listaTrabajos + ", resenaComentario=" + resenaComentario + ", calificacion=" + calificacion + '}';
     }
-   
 
 }

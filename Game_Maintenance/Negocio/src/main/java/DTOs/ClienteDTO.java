@@ -12,10 +12,15 @@ import java.util.List;
  * @author $Luis Carlos Manjarrez Gonzalez
  */
 public class ClienteDTO {
+    public enum ROL {
+        ADMINISTRADOR, USUARIO
+    }
 
     private Long id;
     private String nombre;
     private String telefono;
+    private String correo;
+    private ROL rol;
     private List<ResumenDTO> listaResumenes;
 
     public Long getId() {
@@ -48,6 +53,28 @@ public class ClienteDTO {
 
     public void setListaResumenes(List<ResumenDTO> listaResumenes) {
         this.listaResumenes = listaResumenes;
+        
+    }
+
+    public String getCorreo() {
+        return correo;
+    }
+
+    public void setCorreo(String correo) {
+        this.correo = correo;
+    }
+
+    public ROL getRol() {
+        return rol;
+    }
+
+    public void setRol(ROL rol) {
+        this.rol = rol;
+    }
+
+    @Override
+    public String toString() {
+        return "ClienteDTO{" + "id=" + id + ", nombre=" + nombre + ", telefono=" + telefono + ", correo=" + correo + ", rol=" + rol + ", listaResumenes=" + listaResumenes + '}';
     }
     
 }

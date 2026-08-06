@@ -5,7 +5,6 @@
 
 package DTOs;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -24,6 +23,8 @@ public class ResumenDTO {
     private List<TrabajoDTO> listaTrabajos;
     private String estado;
     private String fechaCreacion;
+    private String resenaComentario;
+    private Integer calificacion;
 
     public Long getId() {
         return id;
@@ -89,11 +90,25 @@ public class ResumenDTO {
         this.fechaCreacion = fechaCreacion;
     }
 
+    public String getResenaComentario() {
+        return resenaComentario;
+    }
+
+    public void setResenaComentario(String resenaComentario) {
+        this.resenaComentario = resenaComentario;
+    }
+
+    public Integer getCalificacion() {
+        return calificacion;
+    }
+
+    public void setCalificacion(Integer calificacion) {
+        this.calificacion = calificacion;
+    }
+
     @Override
     public String toString() {
-        return "ResumenDTO{" + "id=" + id + ", cliente=" + cliente + ", listaDispositivos=" + listaDispositivos + ", comentariosCliente=" + comentariosCliente + ", descripcionProblema=" + descripcionProblema + ", listaTrabajos=" + listaTrabajos + ", estado=" + estado + ", fechaCreacion=" + fechaCreacion + '}';
+        return "ResumenDTO{" + "id=" + id + ", cliente=" + cliente + ", listaDispositivos=" + listaDispositivos + ", comentariosCliente=" + comentariosCliente + ", descripcionProblema=" + descripcionProblema + ", listaTrabajos=" + listaTrabajos + ", estado=" + estado + ", fechaCreacion=" + fechaCreacion + ", resenaComentario=" + resenaComentario + ", calificacion=" + calificacion + '}';
     }
-    
-
     
 }

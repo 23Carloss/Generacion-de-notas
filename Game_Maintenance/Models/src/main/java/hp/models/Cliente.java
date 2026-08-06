@@ -9,6 +9,8 @@ import java.io.Serializable;
 import java.util.List;
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
@@ -22,6 +24,7 @@ import javax.persistence.Table;
 @Entity
 @Table(name="Cliente")
 public class Cliente implements Serializable{
+    enum ROL { ADMINISTRADOR, USUARIO}
     
     @Id
     @Column(name = "idCliente")
@@ -36,7 +39,20 @@ public class Cliente implements Serializable{
     
     @OneToMany(mappedBy = "cliente")
     private List<Resumen> listaResumenes;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name="rol")
+    private ROL rol;
+    
+    @Column(name="correo", unique = true)
+    private String correo;
+    
+    @Column(name="passwordHash")
+    private String paswordHash;
    
+    @Column(name="passwordSalt")
+    private String paswordSalt;
+    
    public Cliente() {
    }
  
@@ -71,11 +87,42 @@ public class Cliente implements Serializable{
     public void setListaResumenes(List<Resumen> listaResumenes) {
         this.listaResumenes = listaResumenes;
     }
-    
+
+    public ROL getRol() {
+        return rol;
+    }
+
+    public void setRol(ROL rol) {
+        this.rol = rol;
+    }
+
+    public String getCorreo() {
+        return correo;
+    }
+
+    public void setCorreo(String correo) {
+        this.correo = correo;
+    }
+
+    public String getPaswordHash() {
+        return paswordHash;
+    }
+
+    public void setPaswordHash(String paswordHash) {
+        this.paswordHash = paswordHash;
+    }
+
+    public String getPaswordSalt() {
+        return paswordSalt;
+    }
+
+    public void setPaswordSalt(String paswordSalt) {
+        this.paswordSalt = paswordSalt;
+    }
 
     @Override
     public String toString() {
-        return "Cliente{" + "id=" + id + ", nombre=" + nombre + ", telefono=" + telefono + '}';
+        return "Cliente{" + "id=" + id + ", nombre=" + nombre + ", telefono=" + telefono + ", listaResumenes=" + listaResumenes + ", rol=" + rol + ", correo=" + correo + '}';
     }
 
 }
