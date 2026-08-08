@@ -2,7 +2,7 @@ package Servlets;
 
 import DTOs.ResumenDTO;
 import Exceptions.PersistenciaException;
-import persistencia.JsonUtil;
+import Util.JsonUtil;
 import Service.ResumenService;
 
 import java.io.IOException;

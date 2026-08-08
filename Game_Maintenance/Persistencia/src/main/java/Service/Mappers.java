@@ -26,18 +26,22 @@ public class Mappers {
     private Mappers() {
     }
 
-    // ---------------------------------------------------------------- Cliente
-    public static ClienteDTO toDTO(Cliente c) {
+     public static ClienteDTO toDTO(Cliente c) {
         if (c == null) return null;
         ClienteDTO dto = new ClienteDTO();
         dto.setId(c.getId());
         dto.setNombre(c.getNombre());
         dto.setTelefono(c.getTelefono());
+        dto.setCorreo(c.getCorreo());
+        if (c.getRol() != null) {
+            dto.setRol(ClienteDTO.ROL.valueOf(c.getRol().name()));
+        }
         // listaResumenes se omite a propósito: es LAZY y no la necesita el
         // front en ninguno de estos endpoints.
+        // passwordHash/passwordSalt NUNCA se mapean al DTO.
         return dto;
     }
-
+ 
     // ------------------------------------------------------------ Dispositivo
     public static DispositivoDTO toDTO(Dispositivo d) {
         if (d == null) return null;
@@ -51,7 +55,7 @@ public class Mappers {
         // resumen se deja null a propósito, para no generar un ciclo.
         return dto;
     }
-
+ 
     // ---------------------------------------------------------------- Trabajo
     public static TrabajoDTO toDTO(Trabajo t) {
         if (t == null) return null;
@@ -63,7 +67,7 @@ public class Mappers {
         dto.setPrecio(t.getPrecio());
         return dto;
     }
-
+ 
     // ---------------------------------------------------------------- Resumen
     public static ResumenDTO toDTO(Resumen r, List<Dispositivo> dispositivos, List<Trabajo> trabajos) {
         if (r == null) return null;
@@ -80,9 +84,11 @@ public class Mappers {
         dto.setListaTrabajos(
                 trabajos == null ? List.of() :
                         trabajos.stream().map(Mappers::toDTO).collect(Collectors.toList()));
+        dto.setResenaComentario(r.getResenaComentario());
+        dto.setCalificacion(r.getCalificacion());
         return dto;
     }
-
+ 
     // -------------------------------------------------- Mapeo de estado (enum <-> texto)
     // Debe coincidir EXACTO con ESTADOS en game-maintenance-frontend/src/constants.js
     public static String estadoAFrontend(Resumen.ESTADO estado) {
@@ -96,7 +102,7 @@ public class Mappers {
             default: return estado.name();
         }
     }
-
+ 
     public static Resumen.ESTADO estadoDesdeFrontend(String estado) {
         if (estado == null) {
             throw new IllegalArgumentException("estado es obligatorio");

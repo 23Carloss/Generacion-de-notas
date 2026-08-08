@@ -112,4 +112,19 @@ public class ClienteDAO implements IGenericoDAO<Cliente, Long> {
             em.close();
         }
     }
+    public Cliente buscarPorCorreo(String correo) throws PersistenciaException {
+        EntityManager em = ManejadorConexiones.getEntityManager();
+        try {
+            List<Cliente> resultado = em.createQuery(
+                    "SELECT c FROM Cliente c WHERE c.correo = :correo", Cliente.class)
+                    .setParameter("correo", correo)
+                    .getResultList();
+            return resultado.isEmpty() ? null : resultado.get(0);
+        } catch (Exception e) {
+            throw new PersistenciaException("Error al buscar el cliente por correo: " + e.getMessage());
+        } finally {
+            em.close();
+        }
+    }
+
 }

@@ -1,4 +1,4 @@
-package persistencia;
+package Util;
 
 import java.io.IOException;
 import javax.servlet.Filter;
@@ -22,25 +22,27 @@ public class CorsFilter implements Filter {
     public void init(FilterConfig filterConfig) {
         // sin inicialización necesaria
     }
-
+ 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
         HttpServletRequest req = (HttpServletRequest) request;
         HttpServletResponse resp = (HttpServletResponse) response;
-
+ 
         resp.setHeader("Access-Control-Allow-Origin", "*");
         resp.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-        resp.setHeader("Access-Control-Allow-Headers", "Content-Type");
-
+        // Se agrega "Authorization" para el token de sesión (Etapa 5); antes
+        // solo se permitía "Content-Type".
+        resp.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+ 
         if ("OPTIONS".equalsIgnoreCase(req.getMethod())) {
             resp.setStatus(HttpServletResponse.SC_OK);
             return;
         }
-
+ 
         chain.doFilter(request, response);
     }
-
+ 
     @Override
     public void destroy() {
         // sin recursos que liberar

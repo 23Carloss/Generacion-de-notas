@@ -1,54 +1,74 @@
-import { useState } from "react";
 import TicketCard from "./TicketCard";
 import EmptyState from "./EmptyState";
+import { money, totalTicket } from "../utils";
 
-export default function TicketsView({ resumenes, onNavigate, onOpenTicket }) {
-  const [query, setQuery] = useState("");
-  const q = query.toLowerCase();
-
-  const list = q
-    ? resumenes.filter(
-        (r) =>
-          (r.cliente && r.cliente.nombre.toLowerCase().includes(q)) ||
-          r.estado.toLowerCase().includes(q) ||
-          (r.listaDispositivos || []).some((d) =>
-            d.modeloDispositivo.toLowerCase().includes(q)
-          )
-      )
-    : resumenes;
+export default function DashboardView({ resumenes, onNavigate, onOpenTicket, esAdmin }) {
+  const total = resumenes.length;
+  const activos = resumenes.filter((r) => r.estado !== "Entregado").length;
+  const listos = resumenes.filter((r) => r.estado === "Listo para entrega").length;
+  const ingresos = resumenes.reduce((s, r) => s + totalTicket(r), 0);
+  const recientes = resumenes.slice(0, 3);
 
   return (
     <>
       <div className="view-header">
         <div>
-          <p className="eyebrow">Todos los tickets</p>
-          <h1>Tickets de reparación</h1>
-          <p>Busca por cliente, modelo de equipo o estado del ticket.</p>
+          <p className="eyebrow">Vista general</p>
+          <h1>Panel de servicio</h1>
+          <p>
+            {esAdmin
+              ? "Estado actual del taller: tickets activos, listos para entrega e ingresos estimados."
+              : "Aquí puedes ver el estado de tus tickets de reparación."}
+          </p>
         </div>
-        <button className="btn btn-primary" onClick={() => onNavigate("nuevo")}>
-          + Nuevo ticket
+        {esAdmin && (
+          <button className="btn btn-primary" onClick={() => onNavigate("nuevo")}>
+            + Nuevo ticket
+          </button>
+        )}
+      </div>
+
+      <div className="stat-grid">
+        <StatCard num={total} lbl={esAdmin ? "Tickets totales" : "Mis tickets"} />
+        <StatCard num={activos} lbl="En proceso" accent />
+        <StatCard num={listos} lbl="Listos para entrega" />
+        <StatCard num={money(ingresos)} lbl={esAdmin ? "Ingresos estimados" : "Total de mis tickets"} />
+      </div>
+
+      <div className="view-header" style={{ marginBottom: "1rem" }}>
+        <h1 style={{ fontSize: "1.05rem" }}>Tickets recientes</h1>
+        <button className="btn btn-ghost btn-small" onClick={() => onNavigate("tickets")}>
+          Ver todos →
         </button>
       </div>
 
-      <div className="toolbar">
-        <input
-          className="input"
-          style={{ minWidth: 260 }}
-          placeholder="Buscar cliente, equipo o estado…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-      </div>
-
-      {list.length ? (
+      {recientes.length ? (
         <div className="tag-grid">
-          {list.map((r) => (
+          {recientes.map((r) => (
             <TicketCard key={r.id} resumen={r} onOpen={onOpenTicket} />
           ))}
         </div>
       ) : (
-        <EmptyState title="Sin resultados" subtitle="Ningún ticket coincide con esa búsqueda." />
+        <EmptyState
+          title="Aún no hay tickets"
+          subtitle={
+            esAdmin
+              ? "Registra el primer ticket de reparación para empezar."
+              : "Todavía no tienes tickets registrados."
+          }
+          actionLabel={esAdmin ? "+ Nuevo ticket" : undefined}
+          onAction={esAdmin ? () => onNavigate("nuevo") : undefined}
+        />
       )}
     </>
+  );
+}
+
+function StatCard({ num, lbl, accent }) {
+  return (
+    <div className={"stat-card" + (accent ? " accent" : "")}>
+      <div className="num">{num}</div>
+      <div className="lbl">{lbl}</div>
+    </div>
   );
 }

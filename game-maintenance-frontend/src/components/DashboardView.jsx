@@ -2,7 +2,7 @@ import TicketCard from "./TicketCard";
 import EmptyState from "./EmptyState";
 import { money, totalTicket } from "../utils";
 
-export default function DashboardView({ resumenes, onNavigate, onOpenTicket }) {
+export default function DashboardView({ resumenes, onNavigate, onOpenTicket, esAdmin }) {
   const total = resumenes.length;
   const activos = resumenes.filter((r) => r.estado !== "Entregado").length;
   const listos = resumenes.filter((r) => r.estado === "Listo para entrega").length;
@@ -15,18 +15,24 @@ export default function DashboardView({ resumenes, onNavigate, onOpenTicket }) {
         <div>
           <p className="eyebrow">Vista general</p>
           <h1>Panel de servicio</h1>
-          <p>Estado actual del taller: tickets activos, listos para entrega e ingresos estimados.</p>
+          <p>
+            {esAdmin
+              ? "Estado actual del taller: tickets activos, listos para entrega e ingresos estimados."
+              : "Aquí puedes ver el estado de tus tickets de reparación."}
+          </p>
         </div>
-        <button className="btn btn-primary" onClick={() => onNavigate("nuevo")}>
-          + Nuevo ticket
-        </button>
+        {esAdmin && (
+          <button className="btn btn-primary" onClick={() => onNavigate("nuevo")}>
+            + Nuevo ticket
+          </button>
+        )}
       </div>
 
       <div className="stat-grid">
-        <StatCard num={total} lbl="Tickets totales" />
+        <StatCard num={total} lbl={esAdmin ? "Tickets totales" : "Mis tickets"} />
         <StatCard num={activos} lbl="En proceso" accent />
         <StatCard num={listos} lbl="Listos para entrega" />
-        <StatCard num={money(ingresos)} lbl="Ingresos estimados" />
+        <StatCard num={money(ingresos)} lbl={esAdmin ? "Ingresos estimados" : "Total de mis tickets"} />
       </div>
 
       <div className="view-header" style={{ marginBottom: "1rem" }}>
@@ -45,9 +51,13 @@ export default function DashboardView({ resumenes, onNavigate, onOpenTicket }) {
       ) : (
         <EmptyState
           title="Aún no hay tickets"
-          subtitle="Registra el primer ticket de reparación para empezar."
-          actionLabel="+ Nuevo ticket"
-          onAction={() => onNavigate("nuevo")}
+          subtitle={
+            esAdmin
+              ? "Registra el primer ticket de reparación para empezar."
+              : "Todavía no tienes tickets registrados."
+          }
+          actionLabel={esAdmin ? "+ Nuevo ticket" : undefined}
+          onAction={esAdmin ? () => onNavigate("nuevo") : undefined}
         />
       )}
     </>

@@ -1,24 +1,23 @@
 package Service;
 
-import Service.Mappers;
+import ConexionDB.ManejadorConexiones;
 import DAOs.DispositivoDAO;
 import DAOs.TrabajoDAO;
 import DTOs.DispositivoDTO;
 import DTOs.ResumenDTO;
 import DTOs.TrabajoDTO;
 import Exceptions.PersistenciaException;
-import ConexionDB.ManejadorConexiones;
+import Exceptions.AutorizacionException;
 import hp.models.Cliente;
 import hp.models.Dispositivo;
 import hp.models.Resumen;
 import hp.models.Trabajo;
-
-import javax.persistence.EntityManager;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Collectors;
+import javax.persistence.EntityManager;
+import javax.servlet.http.HttpServlet;
 
 /**
  * Orquesta la creación/lectura/actualización/borrado de un ticket (Resumen)
@@ -26,25 +25,17 @@ import java.util.stream.Collectors;
  * cuando corresponde (los DAOs individuales usan una transacción por llamada,
  * lo cual no alcanza para crear/eliminar un ticket completo de forma atómica).
  */
-public class ResumenService {
 
+public class ResumenService extends HttpServlet {
+ 
     private final DispositivoDAO dispositivoDAO = new DispositivoDAO();
     private final TrabajoDAO trabajoDAO = new TrabajoDAO();
-
+ 
     public List<ResumenDTO> listarResumenesDTO() throws PersistenciaException {
         EntityManager em = ManejadorConexiones.getEntityManager();
         try {
             List<Resumen> resumenes = em.createQuery("SELECT r FROM Resumen r", Resumen.class).getResultList();
-            resumenes.sort(Comparator.comparing(Resumen::getFechaCreacion,
-                    Comparator.nullsLast(Comparator.reverseOrder())));
-
-            List<ResumenDTO> dtos = new ArrayList<>();
-            for (Resumen r : resumenes) {
-                List<Dispositivo> dispositivos = dispositivoDAO.listarPorResumen(r.getId());
-                List<Trabajo> trabajos = trabajoDAO.listarPorResumen(r.getId());
-                dtos.add(Mappers.toDTO(r, dispositivos, trabajos));
-            }
-            return dtos;
+            return mapearYOrdenar(resumenes);
         } catch (PersistenciaException e) {
             throw e;
         } catch (Exception e) {
@@ -53,7 +44,42 @@ public class ResumenService {
             em.close();
         }
     }
-
+ 
+    /**
+     * Igual que listarResumenesDTO(), pero solo con los tickets de un
+     * cliente en particular. Lo usa ResumenServlet cuando quien pregunta es
+     * un USUARIO (no un ADMINISTRADOR).
+     */
+    public List<ResumenDTO> listarResumenesDTOPorCliente(Long idCliente) throws PersistenciaException {
+        EntityManager em = ManejadorConexiones.getEntityManager();
+        try {
+            List<Resumen> resumenes = em.createQuery(
+                    "SELECT r FROM Resumen r WHERE r.cliente.id = :idCliente", Resumen.class)
+                    .setParameter("idCliente", idCliente)
+                    .getResultList();
+            return mapearYOrdenar(resumenes);
+        } catch (PersistenciaException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new PersistenciaException("Error al listar los tickets del cliente: " + e.getMessage());
+        } finally {
+            em.close();
+        }
+    }
+ 
+    private List<ResumenDTO> mapearYOrdenar(List<Resumen> resumenes) throws PersistenciaException {
+        resumenes.sort(Comparator.comparing(Resumen::getFechaCreacion,
+                Comparator.nullsLast(Comparator.reverseOrder())));
+ 
+        List<ResumenDTO> dtos = new ArrayList<>();
+        for (Resumen r : resumenes) {
+            List<Dispositivo> dispositivos = dispositivoDAO.listarPorResumen(r.getId());
+            List<Trabajo> trabajos = trabajoDAO.listarPorResumen(r.getId());
+            dtos.add(Mappers.toDTO(r, dispositivos, trabajos));
+        }
+        return dtos;
+    }
+ 
     public ResumenDTO obtenerResumenDTO(Long id) throws PersistenciaException {
         EntityManager em = ManejadorConexiones.getEntityManager();
         try {
@@ -66,18 +92,18 @@ public class ResumenService {
             em.close();
         }
     }
-
+ 
     public ResumenDTO crearResumenCompleto(ResumenDTO entrada) throws PersistenciaException {
         EntityManager em = ManejadorConexiones.getEntityManager();
         try {
             em.getTransaction().begin();
-
+ 
             Cliente cliente = em.find(Cliente.class, entrada.getCliente().getId());
             if (cliente == null) {
                 em.getTransaction().rollback();
                 throw new IllegalArgumentException("El cliente indicado no existe");
             }
-
+ 
             Resumen resumen = new Resumen();
             resumen.setCliente(cliente);
             resumen.setDescripcionProblema(entrada.getDescripcionProblema());
@@ -85,7 +111,7 @@ public class ResumenService {
             resumen.setEstado(Resumen.ESTADO.Recibido);
             resumen.setFechaCreacion(LocalDateTime.now());
             em.persist(resumen);
-
+ 
             List<Dispositivo> dispositivosCreados = new ArrayList<>();
             if (entrada.getListaDispositivos() != null) {
                 for (DispositivoDTO d : entrada.getListaDispositivos()) {
@@ -100,7 +126,7 @@ public class ResumenService {
                     dispositivosCreados.add(dispositivo);
                 }
             }
-
+ 
             List<Trabajo> trabajosCreados = new ArrayList<>();
             if (entrada.getListaTrabajos() != null) {
                 for (TrabajoDTO t : entrada.getListaTrabajos()) {
@@ -114,7 +140,7 @@ public class ResumenService {
                     trabajosCreados.add(trabajo);
                 }
             }
-
+ 
             em.getTransaction().commit();
             return Mappers.toDTO(resumen, dispositivosCreados, trabajosCreados);
         } catch (IllegalArgumentException e) {
@@ -128,7 +154,7 @@ public class ResumenService {
             em.close();
         }
     }
-
+ 
     public ResumenDTO actualizarEstado(Long id, String estadoFrontend) throws PersistenciaException {
         EntityManager em = ManejadorConexiones.getEntityManager();
         try {
@@ -140,7 +166,7 @@ public class ResumenService {
             }
             resumen.setEstado(Mappers.estadoDesdeFrontend(estadoFrontend));
             em.getTransaction().commit();
-
+ 
             List<Dispositivo> dispositivos = dispositivoDAO.listarPorResumen(id);
             List<Trabajo> trabajos = trabajoDAO.listarPorResumen(id);
             return Mappers.toDTO(resumen, dispositivos, trabajos);
@@ -158,7 +184,62 @@ public class ResumenService {
             em.close();
         }
     }
-
+ 
+    /**
+     * Guarda la reseña/calificación que deja el cliente sobre un ticket.
+     * Reglas de negocio (pedidas explícitamente en el plan de trabajo):
+     *   - Solo el cliente dueño del ticket puede reseñarlo (AutorizacionException si no).
+     *   - Solo si el ticket ya está en estado Entregado (IllegalArgumentException si no).
+     * Se puede volver a llamar para actualizar una reseña ya existente,
+     * mientras el ticket siga Entregado (que es un estado final).
+     */
+    public ResumenDTO actualizarResena(Long idResumen, Long callerId, String comentario, Integer calificacion)
+            throws PersistenciaException, AutorizacionException {
+        if (calificacion == null || calificacion < 1 || calificacion > 5) {
+            throw new IllegalArgumentException("la calificación debe ser un número entre 1 y 5");
+        }
+ 
+        EntityManager em = ManejadorConexiones.getEntityManager();
+        try {
+            em.getTransaction().begin();
+            Resumen resumen = em.find(Resumen.class, idResumen);
+            if (resumen == null) {
+                em.getTransaction().rollback();
+                return null;
+            }
+            if (resumen.getCliente() == null || callerId == null
+                    || !resumen.getCliente().getId().equals(callerId)) {
+                em.getTransaction().rollback();
+                throw new AutorizacionException("solo el cliente dueño del ticket puede reseñarlo");
+            }
+            if (resumen.getEstado() != Resumen.ESTADO.Entregado) {
+                em.getTransaction().rollback();
+                throw new IllegalArgumentException(
+                        "solo se puede reseñar un ticket cuando su estado es Entregado");
+            }
+ 
+            resumen.setResenaComentario(comentario);
+            resumen.setCalificacion(calificacion);
+            em.getTransaction().commit();
+ 
+            List<Dispositivo> dispositivos = dispositivoDAO.listarPorResumen(idResumen);
+            List<Trabajo> trabajos = trabajoDAO.listarPorResumen(idResumen);
+            return Mappers.toDTO(resumen, dispositivos, trabajos);
+        } catch (IllegalArgumentException | AutorizacionException e) {
+            if (em.getTransaction().isActive()) {
+                em.getTransaction().rollback();
+            }
+            throw e;
+        } catch (Exception e) {
+            if (em.getTransaction().isActive()) {
+                em.getTransaction().rollback();
+            }
+            throw new PersistenciaException("Error al guardar la reseña: " + e.getMessage());
+        } finally {
+            em.close();
+        }
+    }
+ 
     public boolean eliminarResumenCompleto(Long id) throws PersistenciaException {
         EntityManager em = ManejadorConexiones.getEntityManager();
         try {
@@ -184,4 +265,5 @@ public class ResumenService {
             em.close();
         }
     }
+
 }

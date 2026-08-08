@@ -24,7 +24,7 @@ import javax.persistence.Table;
 @Entity
 @Table(name="Cliente")
 public class Cliente implements Serializable{
-    enum ROL { ADMINISTRADOR, USUARIO}
+    public enum ROL { ADMINISTRADOR, USUARIO}
     
     @Id
     @Column(name = "idCliente")
@@ -51,7 +51,7 @@ public class Cliente implements Serializable{
     private String paswordHash;
    
     @Column(name="passwordSalt")
-    private String paswordSalt;
+    private String passwordSalt;
     
    public Cliente() {
    }
@@ -104,20 +104,20 @@ public class Cliente implements Serializable{
         this.correo = correo;
     }
 
-    public String getPaswordHash() {
+    public String getPasswordHash() {
         return paswordHash;
     }
 
-    public void setPaswordHash(String paswordHash) {
+    public void setPasswordHash(String paswordHash) {
         this.paswordHash = paswordHash;
     }
 
-    public String getPaswordSalt() {
-        return paswordSalt;
+    public String getPasswordSalt() {
+        return passwordSalt;
     }
 
-    public void setPaswordSalt(String paswordSalt) {
-        this.paswordSalt = paswordSalt;
+    public void setPasswordSalt(String paswordSalt) {
+        this.passwordSalt = paswordSalt;
     }
 
     @Override

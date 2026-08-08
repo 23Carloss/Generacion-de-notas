@@ -1,5 +1,6 @@
 import { useState } from "react";
 import EmptyState from "./EmptyState";
+import { ROLES } from "../constants";
 
 export default function ClientesView({ clientes, resumenes, onCreate, onRemove }) {
   const [query, setQuery] = useState("");
@@ -85,6 +86,7 @@ export default function ClientesView({ clientes, resumenes, onCreate, onRemove }
             <tr>
               <th>Nombre</th>
               <th>Teléfono</th>
+              <th>Rol</th>
               <th>Tickets</th>
               <th></th>
             </tr>
@@ -96,6 +98,7 @@ export default function ClientesView({ clientes, resumenes, onCreate, onRemove }
                 <tr key={c.id}>
                   <td>{c.nombre}</td>
                   <td>{c.telefono}</td>
+                  <td>{ROLES[c.rol] || "—"}</td>
                   <td>{n}</td>
                   <td>
                     <button className="btn btn-ghost btn-small" onClick={() => onRemove(c.id)}>

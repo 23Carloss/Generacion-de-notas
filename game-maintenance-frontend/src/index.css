@@ -184,3 +184,34 @@ td { padding: .7rem .5rem; border-bottom: 1px solid var(--panel-border); font-si
   .stat-grid { grid-template-columns: repeat(2,1fr); }
   .row2 { grid-template-columns: 1fr; }
 }
+
+/* ---------- autenticación (login / registro) ---------- */
+.auth-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+.auth-card { width: 100%; max-width: 380px; }
+.auth-title { font-family: var(--font-display); font-size: 1.25rem; margin: 0 0 1.2rem; color: var(--paper); }
+.auth-switch { margin-top: 1rem; font-size: .85rem; color: var(--muted); text-align: center; }
+.link-button {
+  background: none; border: none; color: var(--copper);
+  cursor: pointer; font-size: inherit; padding: 0; text-decoration: underline;
+}
+
+/* ---------- reseña / calificación por estrellas ---------- */
+.estrellas { display: flex; gap: .2rem; font-size: 1.4rem; line-height: 1; }
+.estrella { color: rgba(244,238,219,0.25); }
+.estrella.llena { color: var(--gold); }
+.estrellas-input button {
+  background: none; border: none; cursor: pointer; padding: 0;
+  color: rgba(244,238,219,0.25); font-size: inherit; line-height: 1;
+}
+.estrellas-input button.llena { color: var(--gold); }
+
+/* ---------- datos del usuario en el sidebar ---------- */
+.user-box { border-top: 1px solid var(--panel-border); padding-top: .8rem; margin-bottom: .3rem; }
+.user-name { color: var(--paper); font-weight: 600; font-size: .88rem; }
+.user-rol { color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; }
