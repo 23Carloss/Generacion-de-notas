@@ -2,10 +2,12 @@ package Service;
 
 import DTOs.ClienteDTO;
 import DTOs.DispositivoDTO;
+import DTOs.ImagenDTO;
 import DTOs.ResumenDTO;
 import DTOs.TrabajoDTO;
 import hp.models.Cliente;
 import hp.models.Dispositivo;
+import hp.models.Imagen;
 import hp.models.Resumen;
 import hp.models.Trabajo;
 
@@ -68,8 +70,24 @@ public class Mappers {
         return dto;
     }
  
+    // ----------------------------------------------------------------- Imagen
+    public static ImagenDTO toDTO(Imagen im) {
+        if (im == null) return null;
+        ImagenDTO dto = new ImagenDTO();
+        dto.setId(im.getId());
+        if (im.getTipo() != null) {
+            dto.setTipo(ImagenDTO.TipoImagen.valueOf(im.getTipo().name()));
+        }
+        dto.setDataBase64(im.getDataBase64());
+        dto.setDescripcion(im.getDescripcion());
+        dto.setFechaSubida(im.getFechaSubida() != null ? im.getFechaSubida().format(FECHA_FORMATO) : null);
+        // resumen se deja fuera a propósito, para no generar un ciclo.
+        return dto;
+    }
+
     // ---------------------------------------------------------------- Resumen
-    public static ResumenDTO toDTO(Resumen r, List<Dispositivo> dispositivos, List<Trabajo> trabajos) {
+    public static ResumenDTO toDTO(Resumen r, List<Dispositivo> dispositivos, List<Trabajo> trabajos,
+            List<Imagen> imagenes) {
         if (r == null) return null;
         ResumenDTO dto = new ResumenDTO();
         dto.setId(r.getId());
@@ -86,6 +104,9 @@ public class Mappers {
                         trabajos.stream().map(Mappers::toDTO).collect(Collectors.toList()));
         dto.setResenaComentario(r.getResenaComentario());
         dto.setCalificacion(r.getCalificacion());
+        dto.setListaImagenes(
+                imagenes == null ? List.of() :
+                        imagenes.stream().map(Mappers::toDTO).collect(Collectors.toList()));
         return dto;
     }
  

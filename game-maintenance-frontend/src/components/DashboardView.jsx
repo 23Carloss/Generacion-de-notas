@@ -2,7 +2,7 @@ import TicketCard from "./TicketCard";
 import EmptyState from "./EmptyState";
 import { money, totalTicket } from "../utils";
 
-export default function DashboardView({ resumenes, onNavigate, onOpenTicket, esAdmin }) {
+export default function DashboardView({ resumenes, onNavigate, onOpenTicket, esAdmin, usuario }) {
   const total = resumenes.length;
   const activos = resumenes.filter((r) => r.estado !== "Entregado").length;
   const listos = resumenes.filter((r) => r.estado === "Listo para entrega").length;
@@ -11,6 +11,7 @@ export default function DashboardView({ resumenes, onNavigate, onOpenTicket, esA
 
   return (
     <>
+      {usuario?.nombre && <p className="dashboard-welcome">Bienvenido otra vez, {usuario.nombre}</p>}
       <div className="view-header">
         <div>
           <p className="eyebrow">Vista general</p>
@@ -29,7 +30,9 @@ export default function DashboardView({ resumenes, onNavigate, onOpenTicket, esA
       </div>
 
       <div className="stat-grid">
-        <StatCard num={total} lbl={esAdmin ? "Tickets totales" : "Mis tickets"} />
+        {/* El plan pide que el usuario común no vea el total (conteo) de
+            sus tickets; el admin sí lo conserva. */}
+        {esAdmin && <StatCard num={total} lbl="Tickets totales" />}
         <StatCard num={activos} lbl="En proceso" accent />
         <StatCard num={listos} lbl="Listos para entrega" />
         <StatCard num={money(ingresos)} lbl={esAdmin ? "Ingresos estimados" : "Total de mis tickets"} />

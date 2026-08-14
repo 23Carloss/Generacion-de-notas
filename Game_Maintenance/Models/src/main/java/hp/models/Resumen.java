@@ -5,8 +5,6 @@
 
 package hp.models;
 
-import hp.models.Cliente;
-import hp.models.Dispositivo;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -67,7 +65,10 @@ public class Resumen implements Serializable {
    
     @Column(name="calificacion")
     private Integer calificacion;
-
+    
+    @OneToMany(mappedBy = "resumen")
+    private List<Imagen> listaImagenes;
+    
     public Resumen() {
     }
 
@@ -151,9 +152,16 @@ public class Resumen implements Serializable {
         this.calificacion = calificacion;
     }
 
-    @Override
-    public String toString() {
-        return "Resumen{" + "id=" + id + ", cliente=" + cliente + ", estado=" + estado + ", fechaCreacion=" + fechaCreacion + ", listaDispositivos=" + listaDispositivos + ", comentariosCliente=" + comentariosCliente + ", descripcionProblema=" + descripcionProblema + ", listaTrabajos=" + listaTrabajos + ", resenaComentario=" + resenaComentario + ", calificacion=" + calificacion + '}';
+    public List<Imagen> getListaImagenes() {
+        return listaImagenes;
     }
 
+    public void setListaImagenes(List<Imagen> listaImagenes) {
+        this.listaImagenes = listaImagenes;
+    }
+
+    @Override
+    public String toString() {
+        return "Resumen{" + "id=" + id + ", cliente=" + cliente + ", estado=" + estado + ", fechaCreacion=" + fechaCreacion + ", listaDispositivos=" + listaDispositivos + ", comentariosCliente=" + comentariosCliente + ", descripcionProblema=" + descripcionProblema + ", listaTrabajos=" + listaTrabajos + ", resenaComentario=" + resenaComentario + ", calificacion=" + calificacion + ", listaImagenes=" + listaImagenes + '}';
+    }
 }

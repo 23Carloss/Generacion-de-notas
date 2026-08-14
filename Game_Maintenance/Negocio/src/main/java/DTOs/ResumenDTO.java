@@ -25,6 +25,7 @@ public class ResumenDTO {
     private String fechaCreacion;
     private String resenaComentario;
     private Integer calificacion;
+    private List<ImagenDTO> listaImagenes;
 
     public Long getId() {
         return id;
@@ -106,9 +107,17 @@ public class ResumenDTO {
         this.calificacion = calificacion;
     }
 
+    public List<ImagenDTO> getListaImagenes() {
+        return listaImagenes;
+    }
+
+    public void setListaImagenes(List<ImagenDTO> listaImagenes) {
+        this.listaImagenes = listaImagenes;
+    }
+
     @Override
     public String toString() {
-        return "ResumenDTO{" + "id=" + id + ", cliente=" + cliente + ", listaDispositivos=" + listaDispositivos + ", comentariosCliente=" + comentariosCliente + ", descripcionProblema=" + descripcionProblema + ", listaTrabajos=" + listaTrabajos + ", estado=" + estado + ", fechaCreacion=" + fechaCreacion + ", resenaComentario=" + resenaComentario + ", calificacion=" + calificacion + '}';
+        return "ResumenDTO{" + "id=" + id + ", cliente=" + cliente + ", listaDispositivos=" + listaDispositivos + ", comentariosCliente=" + comentariosCliente + ", descripcionProblema=" + descripcionProblema + ", listaTrabajos=" + listaTrabajos + ", estado=" + estado + ", fechaCreacion=" + fechaCreacion + ", resenaComentario=" + resenaComentario + ", calificacion=" + calificacion + ", listaImagenes=" + listaImagenes + '}';
     }
     
 }

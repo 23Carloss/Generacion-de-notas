@@ -2,14 +2,17 @@ package Service;
 
 import ConexionDB.ManejadorConexiones;
 import DAOs.DispositivoDAO;
+import DAOs.ImagenDAO;
 import DAOs.TrabajoDAO;
 import DTOs.DispositivoDTO;
+import DTOs.ImagenDTO;
 import DTOs.ResumenDTO;
 import DTOs.TrabajoDTO;
 import Exceptions.PersistenciaException;
 import Exceptions.AutorizacionException;
 import hp.models.Cliente;
 import hp.models.Dispositivo;
+import hp.models.Imagen;
 import hp.models.Resumen;
 import hp.models.Trabajo;
 import java.time.LocalDateTime;
@@ -30,6 +33,7 @@ public class ResumenService extends HttpServlet {
  
     private final DispositivoDAO dispositivoDAO = new DispositivoDAO();
     private final TrabajoDAO trabajoDAO = new TrabajoDAO();
+    private final ImagenDAO imagenDAO = new ImagenDAO();
  
     public List<ResumenDTO> listarResumenesDTO() throws PersistenciaException {
         EntityManager em = ManejadorConexiones.getEntityManager();
@@ -75,7 +79,8 @@ public class ResumenService extends HttpServlet {
         for (Resumen r : resumenes) {
             List<Dispositivo> dispositivos = dispositivoDAO.listarPorResumen(r.getId());
             List<Trabajo> trabajos = trabajoDAO.listarPorResumen(r.getId());
-            dtos.add(Mappers.toDTO(r, dispositivos, trabajos));
+            List<Imagen> imagenes = imagenDAO.listarPorResumen(r.getId());
+            dtos.add(Mappers.toDTO(r, dispositivos, trabajos, imagenes));
         }
         return dtos;
     }
@@ -87,7 +92,8 @@ public class ResumenService extends HttpServlet {
             if (r == null) return null;
             List<Dispositivo> dispositivos = dispositivoDAO.listarPorResumen(id);
             List<Trabajo> trabajos = trabajoDAO.listarPorResumen(id);
-            return Mappers.toDTO(r, dispositivos, trabajos);
+            List<Imagen> imagenes = imagenDAO.listarPorResumen(id);
+            return Mappers.toDTO(r, dispositivos, trabajos, imagenes);
         } finally {
             em.close();
         }
@@ -142,7 +148,7 @@ public class ResumenService extends HttpServlet {
             }
  
             em.getTransaction().commit();
-            return Mappers.toDTO(resumen, dispositivosCreados, trabajosCreados);
+            return Mappers.toDTO(resumen, dispositivosCreados, trabajosCreados, List.of());
         } catch (IllegalArgumentException e) {
             throw e;
         } catch (Exception e) {
@@ -169,7 +175,8 @@ public class ResumenService extends HttpServlet {
  
             List<Dispositivo> dispositivos = dispositivoDAO.listarPorResumen(id);
             List<Trabajo> trabajos = trabajoDAO.listarPorResumen(id);
-            return Mappers.toDTO(resumen, dispositivos, trabajos);
+            List<Imagen> imagenes = imagenDAO.listarPorResumen(id);
+            return Mappers.toDTO(resumen, dispositivos, trabajos, imagenes);
         } catch (IllegalArgumentException e) {
             if (em.getTransaction().isActive()) {
                 em.getTransaction().rollback();
@@ -224,7 +231,8 @@ public class ResumenService extends HttpServlet {
  
             List<Dispositivo> dispositivos = dispositivoDAO.listarPorResumen(idResumen);
             List<Trabajo> trabajos = trabajoDAO.listarPorResumen(idResumen);
-            return Mappers.toDTO(resumen, dispositivos, trabajos);
+            List<Imagen> imagenes = imagenDAO.listarPorResumen(idResumen);
+            return Mappers.toDTO(resumen, dispositivos, trabajos, imagenes);
         } catch (IllegalArgumentException | AutorizacionException e) {
             if (em.getTransaction().isActive()) {
                 em.getTransaction().rollback();
@@ -240,15 +248,63 @@ public class ResumenService extends HttpServlet {
         }
     }
  
+    /**
+     * Sube una foto (antes/después) y la asocia a un ticket. Solo la usa
+     * ResumenServlet cuando quien pide la subida es un ADMINISTRADOR (ver
+     * plan de trabajo: "Apartado de fotos ... Modo administrador"); las
+     * fotos ya subidas, en cambio, se muestran a ambos roles.
+     */
+    public ImagenDTO subirImagen(Long idResumen, String dataBase64, String descripcion, ImagenDTO.TipoImagen tipo)
+            throws PersistenciaException {
+        if (dataBase64 == null || dataBase64.isBlank()) {
+            throw new IllegalArgumentException("dataBase64 es obligatorio");
+        }
+        EntityManager em = ManejadorConexiones.getEntityManager();
+        try {
+            em.getTransaction().begin();
+            Resumen resumen = em.find(Resumen.class, idResumen);
+            if (resumen == null) {
+                em.getTransaction().rollback();
+                return null;
+            }
+            Imagen imagen = new Imagen();
+            imagen.setResumen(resumen);
+            imagen.setDataBase64(dataBase64);
+            imagen.setDescripcion(descripcion);
+            imagen.setFechaSubida(LocalDateTime.now());
+            if (tipo != null) {
+                imagen.setTipo(Imagen.TipoImagen.valueOf(tipo.name()));
+            }
+            em.persist(imagen);
+            em.getTransaction().commit();
+            return Mappers.toDTO(imagen);
+        } catch (IllegalArgumentException e) {
+            if (em.getTransaction().isActive()) {
+                em.getTransaction().rollback();
+            }
+            throw e;
+        } catch (Exception e) {
+            if (em.getTransaction().isActive()) {
+                em.getTransaction().rollback();
+            }
+            throw new PersistenciaException("Error al subir la imagen: " + e.getMessage());
+        } finally {
+            em.close();
+        }
+    }
+
     public boolean eliminarResumenCompleto(Long id) throws PersistenciaException {
         EntityManager em = ManejadorConexiones.getEntityManager();
         try {
             em.getTransaction().begin();
-            // Se borran primero los hijos (Dispositivo, Trabajo, Resumen_Dispositivos)
-            // para no violar las llaves foráneas hacia Resumen.
+            // Se borran primero los hijos (Dispositivo, Trabajo, Imagen,
+            // Resumen_Dispositivos) para no violar las llaves foráneas hacia
+            // Resumen.
             em.createQuery("DELETE FROM Dispositivo d WHERE d.resumen.id = :id")
                     .setParameter("id", id).executeUpdate();
             em.createQuery("DELETE FROM Trabajo t WHERE t.resumen.id = :id")
+                    .setParameter("id", id).executeUpdate();
+            em.createQuery("DELETE FROM Imagen im WHERE im.resumen.id = :id")
                     .setParameter("id", id).executeUpdate();
             em.createQuery("DELETE FROM Resumen_Dispositivos rd WHERE rd.resumen.id = :id")
                     .setParameter("id", id).executeUpdate();

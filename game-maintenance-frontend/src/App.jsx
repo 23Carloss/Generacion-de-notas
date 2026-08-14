@@ -148,6 +148,10 @@ export default function App() {
     await Api.resumenes.updateResena(id, data);
     await refresh();
   }
+  async function handleUploadImagen(id, data) {
+    await Api.resumenes.uploadImagen(id, data);
+    await refresh();
+  }
   async function handleDeleteTicket(id) {
     await Api.resumenes.remove(id);
     await refresh();
@@ -183,17 +187,23 @@ export default function App() {
         {loading ? (
           <p className="hint">Cargando…</p>
         ) : rutaEfectiva === "dashboard" ? (
-          <DashboardView resumenes={resumenes} onNavigate={navigate} onOpenTicket={openTicket} esAdmin={esAdmin} />
+          <DashboardView
+            resumenes={resumenes}
+            onNavigate={navigate}
+            onOpenTicket={openTicket}
+            esAdmin={esAdmin}
+            usuario={usuario}
+          />
         ) : rutaEfectiva === "tickets" ? (
           <TicketsView resumenes={resumenes} onNavigate={navigate} onOpenTicket={openTicket} esAdmin={esAdmin} />
         ) : rutaEfectiva === "ticket" ? (
           <TicketDetailView
             resumen={currentTicket}
-            usuario={usuario}
             esAdmin={esAdmin}
             onBack={() => navigate("tickets")}
             onUpdateEstado={handleUpdateEstado}
             onUpdateResena={handleUpdateResena}
+            onUploadImagen={handleUploadImagen}
             onDelete={handleDeleteTicket}
           />
         ) : rutaEfectiva === "clientes" ? (

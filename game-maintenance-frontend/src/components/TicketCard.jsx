@@ -1,4 +1,5 @@
 import Badge from "./Badge";
+import Stars from "./Stars";
 import { money, fecha, totalTicket, barcodeStyle } from "../utils";
 
 export default function TicketCard({ resumen, onOpen }) {
@@ -6,6 +7,9 @@ export default function TicketCard({ resumen, onOpen }) {
   const dispositivos =
     (resumen.listaDispositivos || []).map((d) => d.modeloDispositivo).join(", ") ||
     "Sin dispositivo";
+  // La calificación solo tiene sentido (y solo se puede publicar) una vez
+  // que el ticket fue Entregado, así que solo se muestra en ese caso.
+  const mostrarCalificacion = resumen.estado === "Entregado" && resumen.calificacion;
 
   return (
     <a
@@ -21,6 +25,7 @@ export default function TicketCard({ resumen, onOpen }) {
       <div className="tag-name">{cliente}</div>
       <div className="tag-meta">{dispositivos}</div>
       <div className="tag-meta">{fecha(resumen.fechaCreacion)}</div>
+      {mostrarCalificacion && <Stars value={resumen.calificacion} size="1rem" />}
       <div className="tag-divider" />
       <div className="tag-barcode" style={barcodeStyle("T" + resumen.id)} />
       <div className="tag-bottom">

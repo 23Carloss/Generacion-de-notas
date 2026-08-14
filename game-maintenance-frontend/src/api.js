@@ -17,6 +17,7 @@
      POST   /resumenes               body: ResumenDTO                (solo ADMINISTRADOR)
      PUT    /resumenes/{id}/estado   body: { estado: string }        (solo ADMINISTRADOR)
      PUT    /resumenes/{id}/resena   body: { calificacion, resenaComentario } (solo el dueño, ticket Entregado)
+     POST   /resumenes/{id}/imagenes body: { dataBase64, descripcion, tipo? } (solo ADMINISTRADOR; visibles para ambos roles)
      DELETE /resumenes/{id}                                          (solo ADMINISTRADOR)
 
    Todas las peticiones (salvo /auth/*) mandan "Authorization: Bearer <token>"
@@ -84,7 +85,7 @@ async function http(path, options = {}) {
 }
 
 /* ------------------------------- datos demo (solo si CONFIG.MOCK = true) ------------------------------- */
-let seq = { cliente: 100, dispositivo: 200, trabajo: 300, resumen: 400 };
+let seq = { cliente: 100, dispositivo: 200, trabajo: 300, resumen: 400, imagen: 500 };
 const db = { clientes: [], resumenes: [] };
 
 function seed() {
@@ -109,6 +110,7 @@ function seed() {
     ],
     resenaComentario: null,
     calificacion: null,
+    listaImagenes: [],
   });
   db.resumenes.push({
     id: ++seq.resumen,
@@ -123,6 +125,7 @@ function seed() {
     listaTrabajos: [{ id: ++seq.trabajo, tipoTrabajo: "REPARACION", precio: 480 }],
     resenaComentario: "Muy buen servicio, rápido y a buen precio.",
     calificacion: 5,
+    listaImagenes: [],
   });
   db.resumenes.push({
     id: ++seq.resumen,
@@ -137,6 +140,7 @@ function seed() {
     listaTrabajos: [{ id: ++seq.trabajo, tipoTrabajo: "DIAGNOSTICO", precio: 200 }],
     resenaComentario: null,
     calificacion: null,
+    listaImagenes: [],
   });
   db.resumenes.push({
     id: ++seq.resumen,
@@ -151,6 +155,7 @@ function seed() {
     listaTrabajos: [{ id: ++seq.trabajo, tipoTrabajo: "CHIPEO", precio: 600 }],
     resenaComentario: null,
     calificacion: null,
+    listaImagenes: [],
   });
 }
 seed();
@@ -278,6 +283,23 @@ export const Api = {
             })()
           )
         : http("/resumenes/" + id + "/resena", { method: "PUT", body: JSON.stringify(data) }),
+    uploadImagen: (id, data) =>
+      CONFIG.MOCK
+        ? delay(
+            clone(
+              (() => {
+                const r = db.resumenes.find((x) => x.id === id);
+                const nueva = {
+                  id: ++seq.imagen,
+                  fechaSubida: new Date().toISOString(),
+                  ...data,
+                };
+                if (r) r.listaImagenes = [...(r.listaImagenes || []), nueva];
+                return nueva;
+              })()
+            )
+          )
+        : http("/resumenes/" + id + "/imagenes", { method: "POST", body: JSON.stringify(data) }),
     remove: (id) =>
       CONFIG.MOCK
         ? delay(
