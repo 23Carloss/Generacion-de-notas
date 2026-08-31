@@ -23,10 +23,12 @@ import javax.servlet.http.HttpServletResponse;
  *   GET    /api/resumenes/{id}          -> detalle de un ticket (dueño o ADMINISTRADOR)
  *   POST   /api/resumenes               -> crea ticket (body: ResumenDTO)               (solo ADMINISTRADOR)
  *   POST   /api/resumenes/{id}/imagenes -> sube una foto (body: {dataBase64, descripcion, tipo}) (solo ADMINISTRADOR)
+ *   PUT    /api/resumenes/{id}          -> actualiza los datos editables (body: ResumenDTO) (solo ADMINISTRADOR)
  *   PUT    /api/resumenes/{id}/estado   -> actualiza estado (body: {estado: "..."})     (solo ADMINISTRADOR)
  *   PUT    /api/resumenes/{id}/resena   -> guarda reseña/calificación (body: {calificacion, resenaComentario})
  *                                          (solo el cliente dueño, y solo si el ticket está Entregado)
  *   DELETE /api/resumenes/{id}          -> elimina ticket                               (solo ADMINISTRADOR)
+ *   DELETE /api/resumenes/{id}/imagenes/{imagenId} -> elimina foto                       (solo ADMINISTRADOR)
  *
  * El rol y el id del cliente que hace la petición ya vienen resueltos por
  * AuthFilter en los atributos "rol" y "clienteId" del request (ver
@@ -66,7 +68,7 @@ public class ResumenServlet extends HttpServlet {
             }
             JsonUtil.MAPPER.writeValue(resp.getWriter(), dto);
         } catch (PersistenciaException e) {
-            enviarError(resp, 500, e.getMessage());
+            enviarError(resp, 500, "Ocurrió un error interno.");
         }
     }
 
@@ -105,7 +107,7 @@ public class ResumenServlet extends HttpServlet {
         } catch (IllegalArgumentException e) {
             enviarError(resp, 400, e.getMessage());
         } catch (PersistenciaException e) {
-            enviarError(resp, 500, e.getMessage());
+            enviarError(resp, 500, "Ocurrió un error interno.");
         }
     }
 
@@ -144,7 +146,7 @@ public class ResumenServlet extends HttpServlet {
         } catch (IllegalArgumentException e) {
             enviarError(resp, 400, e.getMessage());
         } catch (PersistenciaException e) {
-            enviarError(resp, 500, e.getMessage());
+            enviarError(resp, 500, "Ocurrió un error interno.");
         }
     }
 
@@ -160,6 +162,21 @@ public class ResumenServlet extends HttpServlet {
         }
         String limpio = pathInfo.replaceAll("^/+", "").replaceAll("/+$", "");
         String[] partes = limpio.split("/");
+        if (partes.length == 1) {
+            Long id = idDesdePath(pathInfo);
+            if (id == null) {
+                enviarError(resp, 400, "id invalido");
+                return;
+            }
+            try {
+                actualizarTicket(req, resp, id);
+            } catch (IllegalArgumentException e) {
+                enviarError(resp, 400, e.getMessage());
+            } catch (PersistenciaException e) {
+                enviarError(resp, 500, "Ocurrió un error interno.");
+            }
+            return;
+        }
         if (partes.length != 2) {
             enviarError(resp, 404, "ruta no soportada");
             return;
@@ -187,7 +204,23 @@ public class ResumenServlet extends HttpServlet {
         } catch (IllegalArgumentException e) {
             enviarError(resp, 400, e.getMessage());
         } catch (PersistenciaException e) {
-            enviarError(resp, 500, e.getMessage());
+            enviarError(resp, 500, "Ocurrió un error interno.");
+        }
+    }
+
+    private void actualizarTicket(HttpServletRequest req, HttpServletResponse resp, Long id)
+            throws IOException, PersistenciaException {
+        Cliente.ROL rol = (Cliente.ROL) req.getAttribute("rol");
+        if (rol != Cliente.ROL.ADMINISTRADOR) {
+            enviarError(resp, 403, "solo un administrador puede editar tickets");
+            return;
+        }
+        ResumenDTO entrada = JsonUtil.MAPPER.readValue(req.getInputStream(), ResumenDTO.class);
+        ResumenDTO actualizado = service.actualizarResumenCompleto(id, entrada);
+        if (actualizado == null) {
+            enviarError(resp, 404, "ticket no encontrado");
+        } else {
+            JsonUtil.MAPPER.writeValue(resp.getWriter(), actualizado);
         }
     }
 
@@ -233,6 +266,23 @@ public class ResumenServlet extends HttpServlet {
             return;
         }
 
+        String limpio = req.getPathInfo() == null ? "" : req.getPathInfo()
+                .replaceAll("^/+", "").replaceAll("/+$", "");
+        String[] partes = limpio.isEmpty() ? new String[0] : limpio.split("/");
+        if (partes.length == 3 && "imagenes".equals(partes[1])) {
+            try {
+                Long idResumen = Long.valueOf(partes[0]);
+                Long idImagen = Long.valueOf(partes[2]);
+                boolean eliminada = service.eliminarImagen(idResumen, idImagen);
+                resp.setStatus(eliminada ? 204 : 404);
+            } catch (NumberFormatException e) {
+                enviarError(resp, 400, "id invalido");
+            } catch (PersistenciaException e) {
+                enviarError(resp, 500, "Ocurrió un error interno.");
+            }
+            return;
+        }
+
         Long id = idDesdePath(req.getPathInfo());
         if (id == null) {
             enviarError(resp, 400, "id invalido");
@@ -242,7 +292,7 @@ public class ResumenServlet extends HttpServlet {
             boolean eliminado = service.eliminarResumenCompleto(id);
             resp.setStatus(eliminado ? 204 : 404);
         } catch (PersistenciaException e) {
-            enviarError(resp, 500, e.getMessage());
+            enviarError(resp, 500, "Ocurrió un error interno.");
         }
     }
 

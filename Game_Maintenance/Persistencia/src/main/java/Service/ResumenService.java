@@ -19,6 +19,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Base64;
+import java.util.regex.Pattern;
 import javax.persistence.EntityManager;
 import javax.servlet.http.HttpServlet;
 
@@ -30,6 +32,9 @@ import javax.servlet.http.HttpServlet;
  */
 
 public class ResumenService extends HttpServlet {
+    private static final int MAX_IMAGE_BYTES = 1_048_576;
+    private static final Pattern DATA_URL_IMAGE = Pattern.compile(
+            "^data:image/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$");
  
     private final DispositivoDAO dispositivoDAO = new DispositivoDAO();
     private final TrabajoDAO trabajoDAO = new TrabajoDAO();
@@ -110,10 +115,14 @@ public class ResumenService extends HttpServlet {
                 throw new IllegalArgumentException("El cliente indicado no existe");
             }
  
+            String descripcionProblema = Util.ValidationUtil.requiredText(
+                    entrada.getDescripcionProblema(), "descripcionProblema", 2_000);
+            String comentariosCliente = textoOpcional(entrada.getComentariosCliente(), "comentariosCliente", 2_000);
+
             Resumen resumen = new Resumen();
             resumen.setCliente(cliente);
-            resumen.setDescripcionProblema(entrada.getDescripcionProblema());
-            resumen.setComentariosCliente(entrada.getComentariosCliente());
+            resumen.setDescripcionProblema(descripcionProblema);
+            resumen.setComentariosCliente(comentariosCliente);
             resumen.setEstado(Resumen.ESTADO.Recibido);
             resumen.setFechaCreacion(LocalDateTime.now());
             em.persist(resumen);
@@ -121,9 +130,17 @@ public class ResumenService extends HttpServlet {
             List<Dispositivo> dispositivosCreados = new ArrayList<>();
             if (entrada.getListaDispositivos() != null) {
                 for (DispositivoDTO d : entrada.getListaDispositivos()) {
+                    if (d == null) {
+                        throw new IllegalArgumentException("La lista de dispositivos contiene un elemento inválido.");
+                    }
                     Dispositivo dispositivo = new Dispositivo();
-                    dispositivo.setModeloDispositivo(d.getModeloDispositivo());
-                    dispositivo.setDetallesDispositivo(d.getDetallesDispositivo());
+                    dispositivo.setModeloDispositivo(Util.ValidationUtil.requiredText(
+                            d.getModeloDispositivo(), "modeloDispositivo", 160));
+                    dispositivo.setDetallesDispositivo(d.getDetallesDispositivo() == null
+                            ? null : Util.ValidationUtil.requiredText(d.getDetallesDispositivo(), "detallesDispositivo", 1_000));
+                    if (d.getPlataforma() == null) {
+                        throw new IllegalArgumentException("plataforma es obligatoria.");
+                    }
                     if (d.getPlataforma() != null) {
                         dispositivo.setPlataforma(Dispositivo.Plataforma.valueOf(d.getPlataforma().name()));
                     }
@@ -133,23 +150,14 @@ public class ResumenService extends HttpServlet {
                 }
             }
  
-            List<Trabajo> trabajosCreados = new ArrayList<>();
-            if (entrada.getListaTrabajos() != null) {
-                for (TrabajoDTO t : entrada.getListaTrabajos()) {
-                    Trabajo trabajo = new Trabajo();
-                    if (t.getTipoTrabajo() != null) {
-                        trabajo.setTipoTrabajo(Trabajo.TipoTrabajo.valueOf(t.getTipoTrabajo().name()));
-                    }
-                    trabajo.setPrecio(t.getPrecio());
-                    trabajo.setResumen(resumen);
-                    em.persist(trabajo);
-                    trabajosCreados.add(trabajo);
-                }
-            }
+            List<Trabajo> trabajosCreados = crearTrabajos(em, resumen, entrada.getListaTrabajos());
  
             em.getTransaction().commit();
             return Mappers.toDTO(resumen, dispositivosCreados, trabajosCreados, List.of());
         } catch (IllegalArgumentException e) {
+            if (em.getTransaction().isActive()) {
+                em.getTransaction().rollback();
+            }
             throw e;
         } catch (Exception e) {
             if (em.getTransaction().isActive()) {
@@ -159,6 +167,127 @@ public class ResumenService extends HttpServlet {
         } finally {
             em.close();
         }
+    }
+
+    /** Actualiza los datos editables de un ticket. Solo se invoca desde el servlet tras validar el rol ADMINISTRADOR. */
+    public ResumenDTO actualizarResumenCompleto(Long id, ResumenDTO entrada) throws PersistenciaException {
+        if (entrada == null || entrada.getCliente() == null || entrada.getCliente().getId() == null) {
+            throw new IllegalArgumentException("cliente.id es obligatorio");
+        }
+        EntityManager em = ManejadorConexiones.getEntityManager();
+        try {
+            em.getTransaction().begin();
+            Resumen resumen = em.find(Resumen.class, id);
+            if (resumen == null) {
+                em.getTransaction().rollback();
+                return null;
+            }
+            Cliente cliente = em.find(Cliente.class, entrada.getCliente().getId());
+            if (cliente == null) {
+                throw new IllegalArgumentException("El cliente indicado no existe");
+            }
+
+            resumen.setCliente(cliente);
+            resumen.setDescripcionProblema(Util.ValidationUtil.requiredText(
+                    entrada.getDescripcionProblema(), "descripcionProblema", 2_000));
+            resumen.setComentariosCliente(textoOpcional(entrada.getComentariosCliente(), "comentariosCliente", 2_000));
+
+            em.createQuery("DELETE FROM Dispositivo d WHERE d.resumen.id = :id")
+                    .setParameter("id", id).executeUpdate();
+            em.createQuery("DELETE FROM Trabajo t WHERE t.resumen.id = :id")
+                    .setParameter("id", id).executeUpdate();
+
+            List<Dispositivo> dispositivos = crearDispositivos(em, resumen, entrada.getListaDispositivos());
+            List<Trabajo> trabajos = crearTrabajos(em, resumen, entrada.getListaTrabajos());
+            em.getTransaction().commit();
+
+            List<Imagen> imagenes = imagenDAO.listarPorResumen(id);
+            return Mappers.toDTO(resumen, dispositivos, trabajos, imagenes);
+        } catch (IllegalArgumentException e) {
+            if (em.getTransaction().isActive()) {
+                em.getTransaction().rollback();
+            }
+            throw e;
+        } catch (Exception e) {
+            if (em.getTransaction().isActive()) {
+                em.getTransaction().rollback();
+            }
+            throw new PersistenciaException("Error al actualizar el ticket: " + e.getMessage());
+        } finally {
+            em.close();
+        }
+    }
+
+    private List<Dispositivo> crearDispositivos(EntityManager em, Resumen resumen, List<DispositivoDTO> entradas) {
+        List<Dispositivo> dispositivos = new ArrayList<>();
+        if (entradas == null || entradas.isEmpty()) {
+            throw new IllegalArgumentException("Agrega al menos un dispositivo.");
+        }
+        for (DispositivoDTO d : entradas) {
+            if (d == null || d.getPlataforma() == null) {
+                throw new IllegalArgumentException("El dispositivo contiene datos inválidos.");
+            }
+            Dispositivo dispositivo = new Dispositivo();
+            dispositivo.setModeloDispositivo(Util.ValidationUtil.requiredText(
+                    d.getModeloDispositivo(), "modeloDispositivo", 160));
+            dispositivo.setDetallesDispositivo(textoOpcional(
+                    d.getDetallesDispositivo(), "detallesDispositivo", 1_000));
+            dispositivo.setPlataforma(Dispositivo.Plataforma.valueOf(d.getPlataforma().name()));
+            dispositivo.setResumen(resumen);
+            em.persist(dispositivo);
+            dispositivos.add(dispositivo);
+        }
+        return dispositivos;
+    }
+
+    private List<Trabajo> crearTrabajos(EntityManager em, Resumen resumen, List<TrabajoDTO> entradas) {
+        List<Trabajo> trabajos = new ArrayList<>();
+        if (entradas == null) {
+            return trabajos;
+        }
+        for (TrabajoDTO t : entradas) {
+            if (t == null || t.getTipoTrabajo() == null) {
+                throw new IllegalArgumentException("El trabajo contiene datos inválidos.");
+            }
+            Trabajo trabajo = new Trabajo();
+            Trabajo.TipoTrabajo tipo = Trabajo.TipoTrabajo.valueOf(t.getTipoTrabajo().name());
+            trabajo.setTipoTrabajo(tipo);
+            if (tipo == Trabajo.TipoTrabajo.REPARACION) {
+                if (t.getUnidades() == null || t.getUnidades() < 1 || t.getUnidades() > 10_000
+                        || !precioValido(t.getPrecioUnitario())) {
+                    throw new IllegalArgumentException("La reparación debe incluir pieza, unidades y precio por unidad válidos.");
+                }
+                trabajo.setNombrePieza(Util.ValidationUtil.requiredText(t.getNombrePieza(), "nombrePieza", 160));
+                trabajo.setUnidades(t.getUnidades());
+                trabajo.setPrecioUnitario(t.getPrecioUnitario());
+                double total = t.getUnidades() * t.getPrecioUnitario();
+                if (total > 1_000_000) {
+                    throw new IllegalArgumentException("El precio total de la reparación excede el límite permitido.");
+                }
+                trabajo.setPrecio(total);
+            } else {
+                if (!precioValido(t.getPrecio())) {
+                    throw new IllegalArgumentException("El trabajo contiene datos inválidos.");
+                }
+                trabajo.setPrecio(t.getPrecio());
+                trabajo.setNombrePieza(null);
+                trabajo.setUnidades(null);
+                trabajo.setPrecioUnitario(null);
+            }
+            trabajo.setResumen(resumen);
+            em.persist(trabajo);
+            trabajos.add(trabajo);
+        }
+        return trabajos;
+    }
+
+    private boolean precioValido(Double precio) {
+        return precio != null && Double.isFinite(precio) && precio >= 0 && precio <= 1_000_000;
+    }
+
+    private String textoOpcional(String texto, String campo, int longitudMaxima) {
+        return texto == null || texto.isBlank() ? null
+                : Util.ValidationUtil.requiredText(texto, campo, longitudMaxima);
     }
  
     public ResumenDTO actualizarEstado(Long id, String estadoFrontend) throws PersistenciaException {
@@ -225,7 +354,8 @@ public class ResumenService extends HttpServlet {
                         "solo se puede reseñar un ticket cuando su estado es Entregado");
             }
  
-            resumen.setResenaComentario(comentario);
+            resumen.setResenaComentario(comentario == null || comentario.isBlank() ? null
+                    : Util.ValidationUtil.requiredText(comentario, "resenaComentario", 1_000));
             resumen.setCalificacion(calificacion);
             em.getTransaction().commit();
  
@@ -259,6 +389,20 @@ public class ResumenService extends HttpServlet {
         if (dataBase64 == null || dataBase64.isBlank()) {
             throw new IllegalArgumentException("dataBase64 es obligatorio");
         }
+        if (!DATA_URL_IMAGE.matcher(dataBase64).matches()) {
+            throw new IllegalArgumentException("Solo se permiten imágenes PNG, JPEG o WebP codificadas en Base64.");
+        }
+        int separator = dataBase64.indexOf(',');
+        try {
+            byte[] decoded = Base64.getDecoder().decode(dataBase64.substring(separator + 1));
+            if (decoded.length > MAX_IMAGE_BYTES) {
+                throw new IllegalArgumentException("La imagen excede el tamaño máximo permitido.");
+            }
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("La imagen enviada no es válida.");
+        }
+        String descripcionSegura = descripcion == null || descripcion.isBlank() ? null
+                : Util.ValidationUtil.requiredText(descripcion, "descripcion", 500);
         EntityManager em = ManejadorConexiones.getEntityManager();
         try {
             em.getTransaction().begin();
@@ -270,7 +414,7 @@ public class ResumenService extends HttpServlet {
             Imagen imagen = new Imagen();
             imagen.setResumen(resumen);
             imagen.setDataBase64(dataBase64);
-            imagen.setDescripcion(descripcion);
+            imagen.setDescripcion(descripcionSegura);
             imagen.setFechaSubida(LocalDateTime.now());
             if (tipo != null) {
                 imagen.setTipo(Imagen.TipoImagen.valueOf(tipo.name()));
@@ -288,6 +432,28 @@ public class ResumenService extends HttpServlet {
                 em.getTransaction().rollback();
             }
             throw new PersistenciaException("Error al subir la imagen: " + e.getMessage());
+        } finally {
+            em.close();
+        }
+    }
+
+    /** Elimina una imagen únicamente si pertenece al ticket indicado. */
+    public boolean eliminarImagen(Long idResumen, Long idImagen) throws PersistenciaException {
+        EntityManager em = ManejadorConexiones.getEntityManager();
+        try {
+            em.getTransaction().begin();
+            int eliminadas = em.createQuery(
+                    "DELETE FROM Imagen im WHERE im.id = :idImagen AND im.resumen.id = :idResumen")
+                    .setParameter("idImagen", idImagen)
+                    .setParameter("idResumen", idResumen)
+                    .executeUpdate();
+            em.getTransaction().commit();
+            return eliminadas > 0;
+        } catch (Exception e) {
+            if (em.getTransaction().isActive()) {
+                em.getTransaction().rollback();
+            }
+            throw new PersistenciaException("Error al eliminar la imagen: " + e.getMessage());
         } finally {
             em.close();
         }

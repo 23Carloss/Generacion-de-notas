@@ -23,6 +23,10 @@ public class TrabajoDTO {
     
     private Double precio;
 
+    private String nombrePieza;
+    private Integer unidades;
+    private Double precioUnitario;
+
     public Long getId() {
         return id;
     }
@@ -53,6 +57,30 @@ public class TrabajoDTO {
 
     public void setPrecio(Double precio) {
         this.precio = precio;
+    }
+
+    public String getNombrePieza() {
+        return nombrePieza;
+    }
+
+    public void setNombrePieza(String nombrePieza) {
+        this.nombrePieza = nombrePieza;
+    }
+
+    public Integer getUnidades() {
+        return unidades;
+    }
+
+    public void setUnidades(Integer unidades) {
+        this.unidades = unidades;
+    }
+
+    public Double getPrecioUnitario() {
+        return precioUnitario;
+    }
+
+    public void setPrecioUnitario(Double precioUnitario) {
+        this.precioUnitario = precioUnitario;
     }
     
 

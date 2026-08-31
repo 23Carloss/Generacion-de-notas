@@ -25,7 +25,7 @@ import Util.CorsFilter;
 public class ServerMain {
 
     public static void main(String[] args) throws Exception {
-        ManejadorConexiones.Inicializar();
+      ManejadorConexiones.Inicializar();
  
         int puerto = 8080;
         Server server = new Server(puerto);
@@ -34,7 +34,10 @@ public class ServerMain {
         contexto.setContextPath("/GameMaintenance");
         server.setHandler(contexto);
  
+        contexto.addFilter(new FilterHolder(new SecurityHeadersFilter()), "/*", EnumSet.of(DispatcherType.REQUEST));
         contexto.addFilter(new FilterHolder(new CorsFilter()), "/*", EnumSet.of(DispatcherType.REQUEST));
+        contexto.addFilter(new FilterHolder(new RequestSizeFilter()), "/*", EnumSet.of(DispatcherType.REQUEST));
+        contexto.addFilter(new FilterHolder(new ErrorHandlingFilter()), "/*", EnumSet.of(DispatcherType.REQUEST));
  
         // AuthFilter protege /api/clientes/* y /api/resumenes/*. /api/auth/*
         // se deja fuera a propósito: ahí es donde se obtiene el token, así
