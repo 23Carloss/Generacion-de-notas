@@ -5,7 +5,7 @@ import TicketsView from "./components/TicketsView";
 import TicketDetailView from "./components/TicketDetailView";
 import ClientesView from "./components/ClientesView";
 import NuevoTicketView from "./components/NuevoTicketView";
-import LoginView from "./components/LoginView";
+import LoginView from "./components/Loginview";
 import RegisterView from "./components/RegisterView";
 import PerfilView from "./components/PerfilView";
 import { Api, getToken } from "./api";
