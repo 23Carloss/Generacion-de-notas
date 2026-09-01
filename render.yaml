@@ -1,24 +1,26 @@
 # yaml-language-server: $schema=https://render.com/schema/render.yaml.json
-# Backend Blueprint. Create Render PostgreSQL separately, then enter its
-# internal JDBC host and credentials when the Blueprint prompts you.
+# Un solo Blueprint para el monorepo: API Java + sitio estático React.
 services:
   - type: web
     name: game-maintenance-api
     runtime: docker
     plan: free
     region: oregon
+    rootDir: Game_Maintenance
     dockerfilePath: ./Dockerfile
     dockerContext: .
     autoDeployTrigger: commit
     envVars:
       - key: PORT
         value: "10000"
+      # Usa host interno de Render y credenciales separadas. Nunca los subas al repo.
       - key: DB_URL
         sync: false
       - key: DB_USER
         sync: false
       - key: DB_PASSWORD
         sync: false
+      # Completar al conocer la URL HTTPS pública del sitio estático.
       - key: APP_ALLOWED_ORIGINS
         sync: false
       - key: DB_SCHEMA_ACTION
@@ -29,3 +31,40 @@ services:
         value: "900"
       - key: MAX_REQUEST_BYTES
         value: "1572864"
+
+  - type: web
+    name: game-maintenance-web
+    runtime: static
+    rootDir: game-maintenance-frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    autoDeployTrigger: commit
+    envVars:
+      # Valor público, definido durante la creación del Blueprint.
+      - key: VITE_API_BASE
+        sync: false
+      - key: NODE_VERSION
+        value: "22"
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: Content-Security-Policy
+        value: "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://game-maintenance-api.onrender.com"
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: no-referrer
+      - path: /*
+        name: Permissions-Policy
+        value: "camera=(), geolocation=(), microphone=()"
+      - path: /*
+        name: Strict-Transport-Security
+        value: "max-age=31536000; includeSubDomains"
+      - path: /assets/*
+        name: Cache-Control
+        value: "public, max-age=31536000, immutable"
