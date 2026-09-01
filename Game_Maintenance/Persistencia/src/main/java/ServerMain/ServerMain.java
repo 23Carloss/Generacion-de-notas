@@ -5,6 +5,9 @@ import Servlets.ResumenServlet;
 import ConexionDB.ManejadorConexiones;
 import Servlets.AuthServlet;
 import Util.AuthFilter;
+import Util.ErrorHandlingFilter;
+import Util.RequestSizeFilter;
+import Util.SecurityHeadersFilter;
 
 import java.util.EnumSet;
 import javax.servlet.DispatcherType;
@@ -27,14 +30,17 @@ public class ServerMain {
     public static void main(String[] args) throws Exception {
         ManejadorConexiones.Inicializar();
  
-        int puerto = 8080;
+        int puerto = puertoConfigurado();
         Server server = new Server(puerto);
  
         ServletContextHandler contexto = new ServletContextHandler(ServletContextHandler.SESSIONS);
         contexto.setContextPath("/GameMaintenance");
         server.setHandler(contexto);
  
+        contexto.addFilter(new FilterHolder(new SecurityHeadersFilter()), "/*", EnumSet.of(DispatcherType.REQUEST));
         contexto.addFilter(new FilterHolder(new CorsFilter()), "/*", EnumSet.of(DispatcherType.REQUEST));
+        contexto.addFilter(new FilterHolder(new RequestSizeFilter()), "/*", EnumSet.of(DispatcherType.REQUEST));
+        contexto.addFilter(new FilterHolder(new ErrorHandlingFilter()), "/*", EnumSet.of(DispatcherType.REQUEST));
  
         // AuthFilter protege /api/clientes/* y /api/resumenes/*. /api/auth/*
         // se deja fuera a propósito: ahí es donde se obtiene el token, así
@@ -52,9 +58,26 @@ public class ServerMain {
         server.start();
         System.out.println("=====================================================");
         System.out.println(" Game Maintenance API lista en:");
-        System.out.println(" http://localhost:" + puerto + "/GameMaintenance/api");
+        System.out.println(" Puerto HTTP: " + puerto);
+        System.out.println(" API disponible en /GameMaintenance/api");
         System.out.println("=====================================================");
         server.join();
     }
-}
 
+    /**
+     * Render proporciona el puerto HTTP mediante PORT. En desarrollo se
+     * conserva 8080 para no modificar el flujo local.
+     */
+    private static int puertoConfigurado() {
+        String valor = System.getenv().getOrDefault("PORT", "8080").trim();
+        try {
+            int puerto = Integer.parseInt(valor);
+            if (puerto < 1 || puerto > 65_535) {
+                throw new IllegalArgumentException();
+            }
+            return puerto;
+        } catch (IllegalArgumentException e) {
+            throw new IllegalStateException("PORT debe ser un entero entre 1 y 65535.");
+        }
+    }
+}

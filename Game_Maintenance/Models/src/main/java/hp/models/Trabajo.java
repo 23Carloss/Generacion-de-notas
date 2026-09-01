@@ -44,6 +44,17 @@ public class Trabajo implements Serializable {
     @Column(name="precio")
     private Double precio;
 
+    // Estos datos solo aplican cuando el trabajo es una REPARACION. El
+    // precio total del trabajo se conserva en precio = unidades * precioUnitario.
+    @Column(name="nombrePieza")
+    private String nombrePieza;
+
+    @Column(name="unidades")
+    private Integer unidades;
+
+    @Column(name="precioUnitario")
+    private Double precioUnitario;
+
     public Trabajo() {
     }
 
@@ -71,6 +82,30 @@ public class Trabajo implements Serializable {
         this.precio = precio;
     }
 
+    public String getNombrePieza() {
+        return nombrePieza;
+    }
+
+    public void setNombrePieza(String nombrePieza) {
+        this.nombrePieza = nombrePieza;
+    }
+
+    public Integer getUnidades() {
+        return unidades;
+    }
+
+    public void setUnidades(Integer unidades) {
+        this.unidades = unidades;
+    }
+
+    public Double getPrecioUnitario() {
+        return precioUnitario;
+    }
+
+    public void setPrecioUnitario(Double precioUnitario) {
+        this.precioUnitario = precioUnitario;
+    }
+
     public Resumen getResumen() {
         return resumen;
     }
@@ -81,7 +116,9 @@ public class Trabajo implements Serializable {
 
     @Override
     public String toString() {
-        return "Trabajo{" + "id=" + id + ", tipoTrabajo=" + tipoTrabajo + ", resumen=" + resumen + ", precio=" + precio + '}';
+        return "Trabajo{" + "id=" + id + ", tipoTrabajo=" + tipoTrabajo + ", resumen=" + resumen
+                + ", precio=" + precio + ", nombrePieza=" + nombrePieza + ", unidades=" + unidades
+                + ", precioUnitario=" + precioUnitario + '}';
     }
     
 

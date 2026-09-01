@@ -7,6 +7,7 @@ package Service;
 
 import hp.models.Cliente;
 import java.security.SecureRandom;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -28,10 +29,21 @@ public class TokenService {
     public static class SesionInfo {
         public final Long clienteId;
         public final Cliente.ROL rol;
- 
+        private volatile Instant expiraEn;
+
         public SesionInfo(Long clienteId, Cliente.ROL rol) {
             this.clienteId = clienteId;
             this.rol = rol;
+            this.expiraEn = siguienteExpiracion();
+        }
+
+        private boolean vigenteYRenovar() {
+            Instant now = Instant.now();
+            if (!now.isBefore(expiraEn)) {
+                return false;
+            }
+            expiraEn = siguienteExpiracion();
+            return true;
         }
     }
  
@@ -48,12 +60,24 @@ public class TokenService {
         if (token == null) {
             return null;
         }
-        return SESIONES.get(token);
+        SesionInfo sesion = SESIONES.get(token);
+        if (sesion == null) {
+            return null;
+        }
+        if (!sesion.vigenteYRenovar()) {
+            SESIONES.remove(token, sesion);
+            return null;
+        }
+        return sesion;
     }
  
     public static void invalidar(String token) {
         if (token != null) {
             SESIONES.remove(token);
         }
+    }
+
+    private static Instant siguienteExpiracion() {
+        return Instant.now().plusSeconds(Util.AppConfig.sessionIdleTimeoutSeconds());
     }
 }

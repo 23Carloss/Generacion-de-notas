@@ -1,0 +1,10 @@
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+
+# Build and IDE output
+target/
+.m2/
+*.class
+nbproject/private/

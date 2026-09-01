@@ -29,14 +29,18 @@ public class CorsFilter implements Filter {
         HttpServletRequest req = (HttpServletRequest) request;
         HttpServletResponse resp = (HttpServletResponse) response;
  
-        resp.setHeader("Access-Control-Allow-Origin", "*");
-        resp.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-        // Se agrega "Authorization" para el token de sesión (Etapa 5); antes
-        // solo se permitía "Content-Type".
-        resp.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
- 
+        String origin = req.getHeader("Origin");
+        boolean allowed = origin != null && AppConfig.allowedOrigins().contains(origin);
+        if (allowed) {
+            resp.setHeader("Access-Control-Allow-Origin", origin);
+            resp.setHeader("Vary", "Origin");
+            resp.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+            resp.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+            resp.setHeader("Access-Control-Max-Age", "600");
+        }
+
         if ("OPTIONS".equalsIgnoreCase(req.getMethod())) {
-            resp.setStatus(HttpServletResponse.SC_OK);
+            resp.setStatus(allowed ? HttpServletResponse.SC_NO_CONTENT : HttpServletResponse.SC_FORBIDDEN);
             return;
         }
  

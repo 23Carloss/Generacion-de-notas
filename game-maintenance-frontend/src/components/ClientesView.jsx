@@ -2,12 +2,13 @@ import { useState } from "react";
 import EmptyState from "./EmptyState";
 import { ROLES } from "../constants";
 
-export default function ClientesView({ clientes, resumenes, onCreate, onRemove }) {
+export default function ClientesView({ clientes, resumenes, onCreate, onRemove, onOpenTicket }) {
   const [query, setQuery] = useState("");
   const [adding, setAdding] = useState(false);
   const [nombre, setNombre] = useState("");
   const [telefono, setTelefono] = useState("");
   const [error, setError] = useState("");
+  const [clienteSeleccionadoId, setClienteSeleccionadoId] = useState(null);
 
   const q = query.toLowerCase();
   const list = q
@@ -21,12 +22,21 @@ export default function ClientesView({ clientes, resumenes, onCreate, onRemove }
       setError("Nombre y teléfono son obligatorios.");
       return;
     }
-    await onCreate({ nombre: nombre.trim(), telefono: telefono.trim() });
-    setAdding(false);
-    setNombre("");
-    setTelefono("");
-    setError("");
+    try {
+      await onCreate({ nombre: nombre.trim(), telefono: telefono.trim() });
+      setAdding(false);
+      setNombre("");
+      setTelefono("");
+      setError("");
+    } catch (e) {
+      setError(e?.message || "No se pudo guardar el cliente.");
+    }
   }
+
+  const clienteSeleccionado = clientes.find((c) => c.id === clienteSeleccionadoId);
+  const ticketsCliente = clienteSeleccionado
+    ? resumenes.filter((r) => r.cliente?.id === clienteSeleccionado.id)
+    : [];
 
   return (
     <>
@@ -59,7 +69,9 @@ export default function ClientesView({ clientes, resumenes, onCreate, onRemove }
                 className="input"
                 placeholder="10 dígitos"
                 value={telefono}
-                onChange={(e) => setTelefono(e.target.value)}
+                inputMode="numeric"
+                maxLength={10}
+                onChange={(e) => setTelefono(e.target.value.replace(/\D/g, ""))}
               />
             </div>
           </div>
@@ -101,6 +113,12 @@ export default function ClientesView({ clientes, resumenes, onCreate, onRemove }
                   <td>{ROLES[c.rol] || "—"}</td>
                   <td>{n}</td>
                   <td>
+                    <button
+                      className="btn btn-ghost btn-small"
+                      onClick={() => setClienteSeleccionadoId(c.id)}
+                    >
+                      Ver información
+                    </button>{" "}
                     <button className="btn btn-ghost btn-small" onClick={() => onRemove(c.id)}>
                       Eliminar
                     </button>
@@ -115,6 +133,56 @@ export default function ClientesView({ clientes, resumenes, onCreate, onRemove }
           title="Sin clientes"
           subtitle="Registra tu primer cliente para comenzar a crear tickets."
         />
+      )}
+
+      {clienteSeleccionado && (
+        <section className="card client-detail" aria-live="polite">
+          <div className="client-detail-header">
+            <div>
+              <p className="eyebrow">Información del cliente</p>
+              <h2>{clienteSeleccionado.nombre}</h2>
+            </div>
+            <button
+              className="remove-x"
+              type="button"
+              title="Cerrar información del cliente"
+              aria-label="Cerrar información del cliente"
+              onClick={() => setClienteSeleccionadoId(null)}
+            >
+              ✕
+            </button>
+          </div>
+          <div className="row2">
+            <div className="field">
+              <label>Teléfono</label>
+              <div>{clienteSeleccionado.telefono || "—"}</div>
+            </div>
+            <div className="field">
+              <label>Correo</label>
+              <div>{clienteSeleccionado.correo || "Sin cuenta registrada"}</div>
+            </div>
+          </div>
+          <div className="field">
+            <label>Tickets del cliente ({ticketsCliente.length})</label>
+            {ticketsCliente.length ? (
+              <div className="client-ticket-list">
+                {ticketsCliente.map((ticket) => (
+                  <button
+                    className="client-ticket"
+                    key={ticket.id}
+                    type="button"
+                    onClick={() => onOpenTicket(ticket.id)}
+                  >
+                    <span>Ticket #{ticket.id}</span>
+                    <span>{ticket.estado}</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="hint">Este cliente aún no tiene tickets registrados.</p>
+            )}
+          </div>
+        </section>
       )}
     </>
   );

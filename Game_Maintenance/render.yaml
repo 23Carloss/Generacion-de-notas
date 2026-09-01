@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=https://render.com/schema/render.yaml.json
+# Backend Blueprint. Create Render PostgreSQL separately, then enter its
+# internal JDBC host and credentials when the Blueprint prompts you.
+services:
+  - type: web
+    name: game-maintenance-api
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    autoDeployTrigger: commit
+    envVars:
+      - key: PORT
+        value: "10000"
+      - key: DB_URL
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: APP_ALLOWED_ORIGINS
+        sync: false
+      - key: DB_SCHEMA_ACTION
+        value: none
+      - key: APP_ENABLE_HSTS
+        value: "true"
+      - key: SESSION_IDLE_TIMEOUT_SECONDS
+        value: "900"
+      - key: MAX_REQUEST_BYTES
+        value: "1572864"

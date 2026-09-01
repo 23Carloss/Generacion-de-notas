@@ -8,25 +8,28 @@ package ConexionDB;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.Persistence;
+import Util.AppConfig;
 
 /**
  *
  * @author $Luis Carlos Manjarrez Gonzalez
  */
 public class ManejadorConexiones {
-        private static EntityManagerFactory emFactory =
-            Persistence.createEntityManagerFactory(
-                    "TicketsPU");
+    private static volatile EntityManagerFactory emFactory;
 
     public static EntityManager getEntityManager() {
+        Inicializar();
         return emFactory.createEntityManager();
     }
     
     //metodos para evitar multiples conexiones por los servlets
     public static void Inicializar(){
         if(emFactory == null){
-            emFactory = Persistence.createEntityManagerFactory(
-                    "TicketsPU");
+            synchronized (ManejadorConexiones.class) {
+                if (emFactory == null) {
+                    emFactory = Persistence.createEntityManagerFactory("TicketsPU", AppConfig.databaseProperties());
+                }
+            }
         }
     }
     

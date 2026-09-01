@@ -40,7 +40,7 @@ public class Mappers {
         }
         // listaResumenes se omite a propósito: es LAZY y no la necesita el
         // front en ninguno de estos endpoints.
-        // passwordHash/passwordSalt NUNCA se mapean al DTO.
+        // passwordHash NUNCA se mapea al DTO.
         return dto;
     }
  
@@ -67,6 +67,9 @@ public class Mappers {
             dto.setTipoTrabajo(TrabajoDTO.TipoTrabajo.valueOf(t.getTipoTrabajo().name()));
         }
         dto.setPrecio(t.getPrecio());
+        dto.setNombrePieza(t.getNombrePieza());
+        dto.setUnidades(t.getUnidades());
+        dto.setPrecioUnitario(t.getPrecioUnitario());
         return dto;
     }
  

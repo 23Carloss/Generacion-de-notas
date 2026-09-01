@@ -5,7 +5,7 @@ function blankDispositivo() {
   return { modeloDispositivo: "", detallesDispositivo: "", plataforma: "PLAYSTATION" };
 }
 function blankTrabajo() {
-  return { tipoTrabajo: "DIAGNOSTICO", precio: "" };
+  return { tipoTrabajo: "DIAGNOSTICO", precio: "", nombrePieza: "", unidades: "", precioUnitario: "" };
 }
 
 export default function NuevoTicketView({ clientes, onCreateCliente, onCreateTicket }) {
@@ -23,7 +23,15 @@ export default function NuevoTicketView({ clientes, onCreateCliente, onCreateTic
     setDispositivos((prev) => prev.map((d, idx) => (idx === i ? { ...d, [field]: value } : d)));
   }
   function updateTrabajo(i, field, value) {
-    setTrabajos((prev) => prev.map((t, idx) => (idx === i ? { ...t, [field]: value } : t)));
+    setTrabajos((prev) =>
+      prev.map((t, idx) => {
+        if (idx !== i) return t;
+        if (field === "tipoTrabajo" && value !== "REPARACION") {
+          return { ...t, tipoTrabajo: value, nombrePieza: "", unidades: "", precioUnitario: "" };
+        }
+        return { ...t, [field]: value };
+      })
+    );
   }
 
   async function handleSubmit() {
@@ -41,10 +49,15 @@ export default function NuevoTicketView({ clientes, onCreateCliente, onCreateTic
         setError("Nombre y teléfono del cliente nuevo son obligatorios.");
         return;
       }
-      clienteRef = await onCreateCliente({
-        nombre: nuevoNombre.trim(),
-        telefono: nuevoTelefono.trim(),
-      });
+      try {
+        clienteRef = await onCreateCliente({
+          nombre: nuevoNombre.trim(),
+          telefono: nuevoTelefono.trim(),
+        });
+      } catch (e) {
+        setError(e?.message || "No se pudo crear el cliente.");
+        return;
+      }
     }
 
     const dispositivosValidos = dispositivos.filter((d) => d.modeloDispositivo.trim());
@@ -57,9 +70,35 @@ export default function NuevoTicketView({ clientes, onCreateCliente, onCreateTic
       return;
     }
 
-    const trabajosValidos = trabajos
-      .filter((t) => t.precio !== "" && t.precio != null)
-      .map((t) => ({ tipoTrabajo: t.tipoTrabajo, precio: Number(t.precio) }));
+    const trabajosValidos = [];
+    for (const trabajo of trabajos) {
+      if (trabajo.tipoTrabajo === "REPARACION") {
+        if (!trabajo.nombrePieza.trim() || trabajo.unidades === "" || trabajo.precioUnitario === "") {
+          setError("En una reparación indica la pieza, las unidades y el precio por unidad.");
+          return;
+        }
+        const unidades = Number(trabajo.unidades);
+        const precioUnitario = Number(trabajo.precioUnitario);
+        if (!Number.isInteger(unidades) || unidades < 1 || precioUnitario < 0) {
+          setError("Las unidades deben ser al menos 1 y el precio por unidad no puede ser negativo.");
+          return;
+        }
+        trabajosValidos.push({
+          tipoTrabajo: trabajo.tipoTrabajo,
+          nombrePieza: trabajo.nombrePieza.trim(),
+          unidades,
+          precioUnitario,
+          precio: unidades * precioUnitario,
+        });
+      } else if (trabajo.precio !== "" && trabajo.precio != null) {
+        const precio = Number(trabajo.precio);
+        if (precio < 0) {
+          setError("El precio del trabajo no puede ser negativo.");
+          return;
+        }
+        trabajosValidos.push({ tipoTrabajo: trabajo.tipoTrabajo, precio });
+      }
+    }
 
     await onCreateTicket({
       cliente: clienteRef,
@@ -126,7 +165,9 @@ export default function NuevoTicketView({ clientes, onCreateCliente, onCreateTic
                   className="input"
                   placeholder="10 dígitos"
                   value={nuevoTelefono}
-                  onChange={(e) => setNuevoTelefono(e.target.value)}
+                  inputMode="numeric"
+                  maxLength={10}
+                  onChange={(e) => setNuevoTelefono(e.target.value.replace(/\D/g, ""))}
                 />
               </div>
             </div>
@@ -202,33 +243,67 @@ export default function NuevoTicketView({ clientes, onCreateCliente, onCreateTic
         <div className="subblock">
           <h3>Trabajos (opcional al ingreso)</h3>
           {trabajos.map((t, i) => (
-            <div className="repeat-row trabajo-row" key={i}>
-              <select
-                value={t.tipoTrabajo}
-                onChange={(e) => updateTrabajo(i, "tipoTrabajo", e.target.value)}
-              >
-                {Object.keys(TIPOS_TRABAJO).map((k) => (
-                  <option key={k} value={k}>
-                    {TIPOS_TRABAJO[k]}
-                  </option>
-                ))}
-              </select>
-              <input
-                className="input"
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="Precio"
-                value={t.precio}
-                onChange={(e) => updateTrabajo(i, "precio", e.target.value)}
-              />
-              <button
-                className="remove-x"
-                title="Quitar"
-                onClick={() => setTrabajos((prev) => prev.filter((_, idx) => idx !== i))}
-              >
-                ✕
-              </button>
+            <div className="trabajo-editor" key={i}>
+              <div className="repeat-row trabajo-row">
+                <select
+                  value={t.tipoTrabajo}
+                  onChange={(e) => updateTrabajo(i, "tipoTrabajo", e.target.value)}
+                >
+                  {Object.keys(TIPOS_TRABAJO).map((k) => (
+                    <option key={k} value={k}>
+                      {TIPOS_TRABAJO[k]}
+                    </option>
+                  ))}
+                </select>
+                {t.tipoTrabajo === "REPARACION" ? (
+                  <div className="repair-price-note">El total se calcula con las unidades y el precio por unidad.</div>
+                ) : (
+                  <input
+                    className="input"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="Precio"
+                    value={t.precio}
+                    onChange={(e) => updateTrabajo(i, "precio", e.target.value)}
+                  />
+                )}
+                <button
+                  className="remove-x"
+                  title="Quitar"
+                  onClick={() => setTrabajos((prev) => prev.filter((_, idx) => idx !== i))}
+                >
+                  ✕
+                </button>
+              </div>
+              {t.tipoTrabajo === "REPARACION" && (
+                <div className="repair-fields">
+                  <input
+                    className="input"
+                    placeholder="Nombre de la pieza"
+                    value={t.nombrePieza}
+                    onChange={(e) => updateTrabajo(i, "nombrePieza", e.target.value)}
+                  />
+                  <input
+                    className="input"
+                    type="number"
+                    min="1"
+                    step="1"
+                    placeholder="Unidades"
+                    value={t.unidades}
+                    onChange={(e) => updateTrabajo(i, "unidades", e.target.value)}
+                  />
+                  <input
+                    className="input"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="Precio por unidad"
+                    value={t.precioUnitario}
+                    onChange={(e) => updateTrabajo(i, "precioUnitario", e.target.value)}
+                  />
+                </div>
+              )}
             </div>
           ))}
           <button

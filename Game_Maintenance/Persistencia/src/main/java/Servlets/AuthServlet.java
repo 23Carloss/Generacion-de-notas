@@ -6,7 +6,12 @@
 package Servlets;
 
 import Exceptions.PersistenciaException;
+import Exceptions.CredencialesInvalidasException;
+import DTOs.LoginRequest;
+import DTOs.RegisterRequest;
 import Service.AuthService;
+import Service.LoginRateLimiter;
+import Service.RegistrationRateLimiter;
 import Service.TokenService;
 import Util.JsonUtil;
 import java.io.IOException;
@@ -50,14 +55,32 @@ public class AuthServlet extends HttpServlet{
         } catch (IllegalArgumentException e) {
             enviarError(resp, 400, e.getMessage());
         } catch (PersistenciaException e) {
-            enviarError(resp, 500, e.getMessage());
+            enviarError(resp, 500, "Ocurrió un error interno.");
         }
     }
  
     private void manejarLogin(HttpServletRequest req, HttpServletResponse resp)
             throws IOException, PersistenciaException {
-        Map<?, ?> body = JsonUtil.MAPPER.readValue(req.getInputStream(), Map.class);
-        AuthService.LoginResult resultado = authService.login(texto(body.get("correo")), texto(body.get("password")));
+        LoginRequest body = JsonUtil.MAPPER.readValue(req.getInputStream(), LoginRequest.class);
+        String limiterKey = req.getRemoteAddr() + "|" + normalizarCuenta(body.getCorreo());
+        long retryAfter = LoginRateLimiter.retryAfterSeconds(limiterKey);
+        if (retryAfter > 0) {
+            responderLimitado(resp, retryAfter);
+            return;
+        }
+        AuthService.LoginResult resultado;
+        try {
+            resultado = authService.login(body.getCorreo(), body.getPassword());
+        } catch (CredencialesInvalidasException e) {
+            long bloqueo = LoginRateLimiter.registerFailure(limiterKey);
+            if (bloqueo > 0) {
+                responderLimitado(resp, bloqueo);
+            } else {
+                enviarError(resp, HttpServletResponse.SC_UNAUTHORIZED, "Credenciales incorrectas.");
+            }
+            return;
+        }
+        LoginRateLimiter.registerSuccess(limiterKey);
         JsonUtil.MAPPER.writeValue(resp.getWriter(), Map.of(
                 "token", resultado.token,
                 "cliente", resultado.cliente
@@ -66,12 +89,17 @@ public class AuthServlet extends HttpServlet{
  
     private void manejarRegister(HttpServletRequest req, HttpServletResponse resp)
             throws IOException, PersistenciaException {
-        Map<?, ?> body = JsonUtil.MAPPER.readValue(req.getInputStream(), Map.class);
+        long retryAfter = RegistrationRateLimiter.tryAcquire(req.getRemoteAddr());
+        if (retryAfter > 0) {
+            responderLimitado(resp, retryAfter);
+            return;
+        }
+        RegisterRequest body = JsonUtil.MAPPER.readValue(req.getInputStream(), RegisterRequest.class);
         AuthService.LoginResult resultado = authService.registrar(
-                texto(body.get("nombre")),
-                texto(body.get("telefono")),
-                texto(body.get("correo")),
-                texto(body.get("password")));
+                body.getNombre(),
+                body.getTelefono(),
+                body.getCorreo(),
+                body.getPassword());
         resp.setStatus(201);
         JsonUtil.MAPPER.writeValue(resp.getWriter(), Map.of(
                 "token", resultado.token,
@@ -86,8 +114,13 @@ public class AuthServlet extends HttpServlet{
         resp.setStatus(204);
     }
  
-    private String texto(Object valor) {
-        return valor == null ? null : valor.toString();
+    private String normalizarCuenta(String correo) {
+        return correo == null ? "" : correo.trim().toLowerCase();
+    }
+
+    private void responderLimitado(HttpServletResponse resp, long retryAfter) throws IOException {
+        resp.setHeader("Retry-After", Long.toString(Math.max(1, retryAfter)));
+        enviarError(resp, 429, "Demasiados intentos. Intenta de nuevo más tarde.");
     }
  
     private void enviarError(HttpServletResponse resp, int status, String mensaje) throws IOException {

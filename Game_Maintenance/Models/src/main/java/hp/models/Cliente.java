@@ -49,10 +49,14 @@ public class Cliente implements Serializable{
     
     @Column(name="passwordHash")
     private String paswordHash;
-   
+
+    /**
+     * Solo se conserva para migrar cuentas creadas antes de BCrypt. Las nuevas
+     * cuentas dejan este campo vacío y almacenan todo en passwordHash.
+     */
     @Column(name="passwordSalt")
     private String passwordSalt;
-    
+
    public Cliente() {
    }
  
@@ -116,8 +120,8 @@ public class Cliente implements Serializable{
         return passwordSalt;
     }
 
-    public void setPasswordSalt(String paswordSalt) {
-        this.passwordSalt = paswordSalt;
+    public void setPasswordSalt(String passwordSalt) {
+        this.passwordSalt = passwordSalt;
     }
 
     @Override

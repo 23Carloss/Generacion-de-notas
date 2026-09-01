@@ -1,0 +1,10 @@
+.git
+.m2
+**/target
+.env
+.env.*
+!.env.example
+nbproject
+Deployment
+SECURITY_SETUP.md
+*.log

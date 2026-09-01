@@ -10,11 +10,15 @@ export default function TicketDetailView({
   esAdmin,
   onBack,
   onUpdateEstado,
+  onUpdateTicket,
   onUpdateResena,
   onUploadImagen,
+  onRemoveImagen,
   onDelete,
+  clientes,
 }) {
   const [confirming, setConfirming] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   if (!resumen) {
     return (
@@ -28,6 +32,34 @@ export default function TicketDetailView({
   }
 
   const total = totalTicket(resumen);
+
+  if (editing) {
+    return (
+      <>
+        <button className="back-link" onClick={() => setEditing(false)}>
+          ← Cancelar edición
+        </button>
+        <div className="view-header">
+          <div>
+            <p className="eyebrow">Ticket #{resumen.id}</p>
+            <h1>Editar ticket</h1>
+            <p>Actualiza el cliente, el equipo, el problema o los trabajos registrados.</p>
+          </div>
+        </div>
+        <div className="card">
+          <TicketEditor
+            resumen={resumen}
+            clientes={clientes}
+            onCancel={() => setEditing(false)}
+            onSave={async (data) => {
+              await onUpdateTicket(resumen.id, data);
+              setEditing(false);
+            }}
+          />
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -72,7 +104,14 @@ export default function TicketDetailView({
                 <tbody>
                   {resumen.listaTrabajos.map((t) => (
                     <tr key={t.id}>
-                      <td>{TIPOS_TRABAJO[t.tipoTrabajo] || t.tipoTrabajo}</td>
+                      <td>
+                        {TIPOS_TRABAJO[t.tipoTrabajo] || t.tipoTrabajo}
+                        {t.tipoTrabajo === "REPARACION" && t.nombrePieza && (
+                          <div className="hint">
+                            {t.nombrePieza} · {t.unidades} {t.unidades === 1 ? "unidad" : "unidades"} × {money(t.precioUnitario)}
+                          </div>
+                        )}
+                      </td>
                       <td style={{ textAlign: "right" }}>{money(t.precio)}</td>
                     </tr>
                   ))}
@@ -95,7 +134,11 @@ export default function TicketDetailView({
 
           <div className="subblock">
             <h3>Fotos</h3>
-            <GaleriaFotos imagenes={resumen.listaImagenes} />
+            <GaleriaFotos
+              imagenes={resumen.listaImagenes}
+              esAdmin={esAdmin}
+              onRemoveImagen={(imagenId) => onRemoveImagen(resumen.id, imagenId)}
+            />
             {esAdmin && <FormularioSubirFoto resumenId={resumen.id} onUploadImagen={onUploadImagen} />}
           </div>
 
@@ -133,6 +176,13 @@ export default function TicketDetailView({
           {esAdmin && (
             <>
               <button
+                className="btn btn-primary btn-small"
+                style={{ width: "100%", justifyContent: "center", marginBottom: ".7rem" }}
+                onClick={() => setEditing(true)}
+              >
+                Editar ticket
+              </button>
+              <button
                 className="btn btn-danger btn-small"
                 style={{ width: "100%", justifyContent: "center" }}
                 onClick={() => setConfirming(true)}
@@ -162,34 +212,283 @@ export default function TicketDetailView({
   );
 }
 
+function blankDispositivo() {
+  return { modeloDispositivo: "", detallesDispositivo: "", plataforma: "PLAYSTATION" };
+}
+
+function blankTrabajo() {
+  return { tipoTrabajo: "DIAGNOSTICO", precio: "", nombrePieza: "", unidades: "", precioUnitario: "" };
+}
+
+function TicketEditor({ resumen, clientes, onCancel, onSave }) {
+  const [clienteId, setClienteId] = useState(resumen.cliente?.id || "");
+  const [descripcionProblema, setDescripcionProblema] = useState(resumen.descripcionProblema || "");
+  const [comentariosCliente, setComentariosCliente] = useState(resumen.comentariosCliente || "");
+  const [dispositivos, setDispositivos] = useState(
+    (resumen.listaDispositivos || []).map((d) => ({ ...d }))
+  );
+  const [trabajos, setTrabajos] = useState(
+    (resumen.listaTrabajos || []).map((t) => ({
+      ...t,
+      precio: t.precio ?? "",
+      nombrePieza: t.nombrePieza || "",
+      unidades: t.unidades ?? "",
+      precioUnitario: t.precioUnitario ?? "",
+    }))
+  );
+  const [error, setError] = useState("");
+  const [guardando, setGuardando] = useState(false);
+
+  useEffect(() => {
+    setClienteId(resumen.cliente?.id || "");
+    setDescripcionProblema(resumen.descripcionProblema || "");
+    setComentariosCliente(resumen.comentariosCliente || "");
+    setDispositivos((resumen.listaDispositivos || []).map((d) => ({ ...d })));
+    setTrabajos(
+      (resumen.listaTrabajos || []).map((t) => ({
+        ...t,
+        precio: t.precio ?? "",
+        nombrePieza: t.nombrePieza || "",
+        unidades: t.unidades ?? "",
+        precioUnitario: t.precioUnitario ?? "",
+      }))
+    );
+  }, [resumen]);
+
+  function updateDispositivo(index, field, value) {
+    setDispositivos((prev) => prev.map((d, i) => (i === index ? { ...d, [field]: value } : d)));
+  }
+
+  function updateTrabajo(index, field, value) {
+    setTrabajos((prev) =>
+      prev.map((t, i) => {
+        if (i !== index) return t;
+        if (field === "tipoTrabajo" && value !== "REPARACION") {
+          return { ...t, tipoTrabajo: value, nombrePieza: "", unidades: "", precioUnitario: "" };
+        }
+        return { ...t, [field]: value };
+      })
+    );
+  }
+
+  async function guardar() {
+    setError("");
+    if (!clienteId) {
+      setError("Selecciona un cliente.");
+      return;
+    }
+    const dispositivosValidos = dispositivos.filter((d) => d.modeloDispositivo.trim());
+    if (!dispositivosValidos.length) {
+      setError("Agrega al menos un dispositivo con su modelo.");
+      return;
+    }
+    if (!descripcionProblema.trim()) {
+      setError("Describe el problema reportado.");
+      return;
+    }
+
+    const trabajosValidos = [];
+    for (const trabajo of trabajos) {
+      if (trabajo.tipoTrabajo === "REPARACION") {
+        if (!trabajo.nombrePieza.trim() || trabajo.unidades === "" || trabajo.precioUnitario === "") {
+          setError("En una reparación indica la pieza, las unidades y el precio por unidad.");
+          return;
+        }
+        const unidades = Number(trabajo.unidades);
+        const precioUnitario = Number(trabajo.precioUnitario);
+        if (!Number.isInteger(unidades) || unidades < 1 || precioUnitario < 0) {
+          setError("Las unidades deben ser al menos 1 y el precio por unidad no puede ser negativo.");
+          return;
+        }
+        trabajosValidos.push({
+          tipoTrabajo: trabajo.tipoTrabajo,
+          nombrePieza: trabajo.nombrePieza.trim(),
+          unidades,
+          precioUnitario,
+          precio: unidades * precioUnitario,
+        });
+      } else if (trabajo.precio !== "" && trabajo.precio != null) {
+        const precio = Number(trabajo.precio);
+        if (precio < 0) {
+          setError("El precio del trabajo no puede ser negativo.");
+          return;
+        }
+        trabajosValidos.push({ tipoTrabajo: trabajo.tipoTrabajo, precio });
+      }
+    }
+
+    setGuardando(true);
+    try {
+      await onSave({
+        cliente: { id: Number(clienteId) },
+        listaDispositivos: dispositivosValidos.map(({ modeloDispositivo, detallesDispositivo, plataforma }) => ({
+          modeloDispositivo: modeloDispositivo.trim(),
+          detallesDispositivo: detallesDispositivo.trim(),
+          plataforma,
+        })),
+        listaTrabajos: trabajosValidos,
+        descripcionProblema: descripcionProblema.trim(),
+        comentariosCliente: comentariosCliente.trim(),
+      });
+    } catch (e) {
+      setError(e?.message || "No se pudo guardar el ticket.");
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="subblock">
+        <h3>Cliente</h3>
+        <div className="field">
+          <label>Cliente asignado</label>
+          <select value={clienteId} onChange={(e) => setClienteId(e.target.value)}>
+            <option value="">Selecciona un cliente</option>
+            {clientes.map((cliente) => (
+              <option key={cliente.id} value={cliente.id}>
+                {cliente.nombre} · {cliente.telefono}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="subblock">
+        <h3>Dispositivos</h3>
+        {dispositivos.map((dispositivo, index) => (
+          <div className="repeat-row" key={index}>
+            <input className="input" placeholder="Modelo" value={dispositivo.modeloDispositivo}
+              onChange={(e) => updateDispositivo(index, "modeloDispositivo", e.target.value)} />
+            <input className="input" placeholder="Detalles / accesorios" value={dispositivo.detallesDispositivo || ""}
+              onChange={(e) => updateDispositivo(index, "detallesDispositivo", e.target.value)} />
+            <select value={dispositivo.plataforma} onChange={(e) => updateDispositivo(index, "plataforma", e.target.value)}>
+              {Object.keys(PLATAFORMAS).map((plataforma) => <option key={plataforma} value={plataforma}>{PLATAFORMAS[plataforma]}</option>)}
+            </select>
+            <button className="remove-x" type="button" title="Quitar dispositivo"
+              onClick={() => setDispositivos((prev) => prev.filter((_, i) => i !== index))}>✕</button>
+          </div>
+        ))}
+        <button className="btn btn-ghost btn-small" type="button" onClick={() => setDispositivos((prev) => [...prev, blankDispositivo()])}>
+          + Agregar dispositivo
+        </button>
+      </div>
+
+      <div className="row2">
+        <div className="field">
+          <label>Descripción del problema</label>
+          <textarea className="input" rows={3} value={descripcionProblema} onChange={(e) => setDescripcionProblema(e.target.value)} />
+        </div>
+        <div className="field">
+          <label>Comentarios del cliente</label>
+          <textarea className="input" rows={3} value={comentariosCliente} onChange={(e) => setComentariosCliente(e.target.value)} />
+        </div>
+      </div>
+
+      <div className="subblock">
+        <h3>Trabajos</h3>
+        {trabajos.map((trabajo, index) => (
+          <div className="trabajo-editor" key={index}>
+            <div className="repeat-row trabajo-row">
+              <select value={trabajo.tipoTrabajo} onChange={(e) => updateTrabajo(index, "tipoTrabajo", e.target.value)}>
+                {Object.keys(TIPOS_TRABAJO).map((tipo) => <option key={tipo} value={tipo}>{TIPOS_TRABAJO[tipo]}</option>)}
+              </select>
+              {trabajo.tipoTrabajo === "REPARACION" ? (
+                <div className="repair-price-note">El total se calcula con las unidades y el precio por unidad.</div>
+              ) : (
+                <input className="input" type="number" min="0" step="0.01" placeholder="Precio" value={trabajo.precio}
+                  onChange={(e) => updateTrabajo(index, "precio", e.target.value)} />
+              )}
+              <button className="remove-x" type="button" title="Quitar trabajo"
+                onClick={() => setTrabajos((prev) => prev.filter((_, i) => i !== index))}>✕</button>
+            </div>
+            {trabajo.tipoTrabajo === "REPARACION" && (
+              <div className="repair-fields">
+                <input className="input" placeholder="Nombre de la pieza" value={trabajo.nombrePieza}
+                  onChange={(e) => updateTrabajo(index, "nombrePieza", e.target.value)} />
+                <input className="input" type="number" min="1" step="1" placeholder="Unidades" value={trabajo.unidades}
+                  onChange={(e) => updateTrabajo(index, "unidades", e.target.value)} />
+                <input className="input" type="number" min="0" step="0.01" placeholder="Precio por unidad" value={trabajo.precioUnitario}
+                  onChange={(e) => updateTrabajo(index, "precioUnitario", e.target.value)} />
+              </div>
+            )}
+          </div>
+        ))}
+        <button className="btn btn-ghost btn-small" type="button" onClick={() => setTrabajos((prev) => [...prev, blankTrabajo()])}>
+          + Agregar trabajo
+        </button>
+      </div>
+
+      {error && <div className="error-text">{error}</div>}
+      <div className="toolbar" style={{ marginBottom: 0 }}>
+        <button className="btn btn-primary" type="button" disabled={guardando} onClick={guardar}>
+          {guardando ? "Guardando…" : "Guardar cambios"}
+        </button>
+        <button className="btn btn-ghost" type="button" disabled={guardando} onClick={onCancel}>Cancelar</button>
+      </div>
+    </>
+  );
+}
+
 /* --------------------------- Galería de fotos --------------------------- */
 // Visible para ambos roles (usuario y administrador). Cada foto se muestra
 // junto a su fecha de subida y descripción, a modo de pequeño "log" de la
 // subida del archivo.
-function GaleriaFotos({ imagenes }) {
+function GaleriaFotos({ imagenes, esAdmin, onRemoveImagen }) {
+  const [eliminando, setEliminando] = useState(null);
+  const [error, setError] = useState("");
+
+  async function eliminarFoto(imagenId) {
+    setError("");
+    setEliminando(imagenId);
+    try {
+      await onRemoveImagen(imagenId);
+    } catch (e) {
+      setError(e?.message || "No se pudo eliminar la foto.");
+    } finally {
+      setEliminando(null);
+    }
+  }
+
   if (!imagenes || !imagenes.length) {
     return <p className="hint">Sin fotos todavía.</p>;
   }
   return (
-    <div className="photo-grid">
-      {imagenes.map((img) => (
-        <figure className="photo-item" key={img.id}>
-          <img src={img.dataBase64} alt={img.descripcion || "Foto del ticket"} />
-          <figcaption>
-            {img.tipo && <span className="photo-tipo">{img.tipo === "ANTES" ? "Antes" : "Después"}</span>}
-            <span className="hint">
-              {fecha(img.fechaSubida)}
-              {img.descripcion ? " · " + img.descripcion : ""}
-            </span>
-          </figcaption>
-        </figure>
-      ))}
-    </div>
+    <>
+      <div className="photo-grid">
+        {imagenes.map((img) => (
+          <figure className="photo-item" key={img.id}>
+            <img src={img.dataBase64} alt={img.descripcion || "Foto del ticket"} />
+            {esAdmin && (
+              <button
+                className="photo-remove"
+                type="button"
+                title="Eliminar foto"
+                aria-label="Eliminar foto"
+                disabled={eliminando === img.id}
+                onClick={() => eliminarFoto(img.id)}
+              >
+                {eliminando === img.id ? "…" : "×"}
+              </button>
+            )}
+            <figcaption>
+              {img.tipo && <span className="photo-tipo">{img.tipo === "ANTES" ? "Antes" : "Después"}</span>}
+              <span className="hint">
+                {fecha(img.fechaSubida)}
+                {img.descripcion ? " · " + img.descripcion : ""}
+              </span>
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+      {error && <div className="error-text">{error}</div>}
+    </>
   );
 }
 
 /* -------------------------- Subir foto (admin) -------------------------- */
-const TAMANO_MAX_FOTO = 5 * 1024 * 1024; // 5 MB, para no mandar payloads gigantes
+const TAMANO_MAX_FOTO = 1024 * 1024;
+const TIPOS_IMAGEN_PERMITIDOS = ["image/png", "image/jpeg", "image/webp"];
 
 function FormularioSubirFoto({ resumenId, onUploadImagen }) {
   const [dataBase64, setDataBase64] = useState(null);
@@ -198,6 +497,13 @@ function FormularioSubirFoto({ resumenId, onUploadImagen }) {
   const [tipo, setTipo] = useState("");
   const [error, setError] = useState("");
   const [subiendo, setSubiendo] = useState(false);
+  const [inputKey, setInputKey] = useState(0);
+
+  function limpiarArchivo() {
+    setDataBase64(null);
+    setNombreArchivo("");
+    setInputKey((key) => key + 1);
+  }
 
   function handleFile(e) {
     setError("");
@@ -207,11 +513,16 @@ function FormularioSubirFoto({ resumenId, onUploadImagen }) {
       setNombreArchivo("");
       return;
     }
-    if (file.size > TAMANO_MAX_FOTO) {
-      setError("La imagen pesa demasiado (máximo 5 MB).");
+    if (!TIPOS_IMAGEN_PERMITIDOS.includes(file.type)) {
+      setError("Solo se permiten imágenes PNG, JPEG o WebP.");
       e.target.value = "";
-      setDataBase64(null);
-      setNombreArchivo("");
+      limpiarArchivo();
+      return;
+    }
+    if (file.size > TAMANO_MAX_FOTO) {
+      setError("La imagen pesa demasiado (máximo 1 MB).");
+      e.target.value = "";
+      limpiarArchivo();
       return;
     }
     const reader = new FileReader();
@@ -233,8 +544,7 @@ function FormularioSubirFoto({ resumenId, onUploadImagen }) {
     setSubiendo(true);
     try {
       await onUploadImagen(resumenId, { dataBase64, descripcion: descripcion.trim(), tipo: tipo || null });
-      setDataBase64(null);
-      setNombreArchivo("");
+      limpiarArchivo();
       setDescripcion("");
       setTipo("");
     } catch (e) {
@@ -245,11 +555,28 @@ function FormularioSubirFoto({ resumenId, onUploadImagen }) {
   }
 
   return (
-    <div style={{ marginTop: ".8rem", paddingTop: ".8rem", borderTop: "1px dashed var(--panel-border)" }}>
+    <div className="upload-photo-form">
       <div className="field">
         <label>Subir foto desde mi dispositivo</label>
-        <input className="input" type="file" accept="image/*" onChange={handleFile} />
-        {nombreArchivo && <p className="hint" style={{ margin: ".3rem 0 0" }}>Seleccionada: {nombreArchivo}</p>}
+        <label className="file-picker">
+          <input
+            key={inputKey}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            onChange={handleFile}
+          />
+          <span className="file-picker-icon">↑</span>
+          <span>{nombreArchivo ? "Cambiar archivo" : "Seleccionar imagen"}</span>
+          <small>PNG, JPG o WebP · Máximo 1 MB</small>
+        </label>
+        {nombreArchivo && (
+          <div className="selected-file">
+            <span>✓ {nombreArchivo}</span>
+            <button type="button" className="remove-x" title="Quitar archivo" onClick={limpiarArchivo}>
+              ✕
+            </button>
+          </div>
+        )}
       </div>
       <div className="row2">
         <div className="field">
@@ -369,5 +696,3 @@ function ReseñaFormulario({ resumen, onUpdateResena }) {
     </div>
   );
 }
-
-

@@ -40,7 +40,7 @@ public class Imagen {
     private TipoImagen tipo;
 
     @Lob
-    @Column(name = "dataBase64", columnDefinition = "LONGTEXT")
+    @Column(name = "dataBase64")
     private String dataBase64;
 
     @Column(name = "descripcion")

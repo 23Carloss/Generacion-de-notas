@@ -15,9 +15,11 @@
      GET    /resumenes               ADMINISTRADOR: todos · USUARIO: solo los suyos
      GET    /resumenes/{id}
      POST   /resumenes               body: ResumenDTO                (solo ADMINISTRADOR)
+     PUT    /resumenes/{id}          body: ResumenDTO                (solo ADMINISTRADOR)
      PUT    /resumenes/{id}/estado   body: { estado: string }        (solo ADMINISTRADOR)
      PUT    /resumenes/{id}/resena   body: { calificacion, resenaComentario } (solo el dueño, ticket Entregado)
      POST   /resumenes/{id}/imagenes body: { dataBase64, descripcion, tipo? } (solo ADMINISTRADOR; visibles para ambos roles)
+     DELETE /resumenes/{id}/imagenes/{imagenId}                      (solo ADMINISTRADOR)
      DELETE /resumenes/{id}                                          (solo ADMINISTRADOR)
 
    Todas las peticiones (salvo /auth/*) mandan "Authorization: Bearer <token>"
@@ -25,10 +27,13 @@
    ============================================================================= */
 export const CONFIG = {
   MOCK: false,
-  API_BASE: "http://localhost:8080/GameMaintenance/api",
+  // VITE_* values are public because they are embedded in the browser bundle.
+  API_BASE: import.meta.env.VITE_API_BASE || "http://localhost:8080/GameMaintenance/api",
 };
 
-const TOKEN_KEY = "gm_token";
+// The token intentionally remains only in JavaScript memory. A page reload
+// clears it, reducing exposure to persistent browser storage attacks.
+let sessionToken = null;
 
 function delay(value) {
   return new Promise((resolve) => setTimeout(() => resolve(value), 120));
@@ -39,12 +44,11 @@ function clone(obj) {
 }
 
 export function getToken() {
-  return localStorage.getItem(TOKEN_KEY);
+  return sessionToken;
 }
 
 function setToken(token) {
-  if (token) localStorage.setItem(TOKEN_KEY, token);
-  else localStorage.removeItem(TOKEN_KEY);
+  sessionToken = token || null;
 }
 
 class ApiError extends Error {
@@ -75,7 +79,7 @@ async function http(path, options = {}) {
     try {
       const body = await res.json();
       if (body && body.error) mensaje = body.error;
-    } catch (_e) {
+    } catch {
       // la respuesta no traía JSON; se deja el mensaje genérico
     }
     throw new ApiError(mensaje, res.status);
@@ -271,8 +275,29 @@ export const Api = {
           )
         : http("/resumenes/" + id + "/estado", {
             method: "PUT",
-            body: JSON.stringify({ estado }),
+          body: JSON.stringify({ estado }),
           }),
+    update: (id, data) =>
+      CONFIG.MOCK
+        ? delay(
+            clone(
+              (() => {
+                const r = db.resumenes.find((x) => x.id === id);
+                if (!r) return null;
+                Object.assign(r, data);
+                r.listaDispositivos = (data.listaDispositivos || []).map((d) => ({
+                  id: d.id || ++seq.dispositivo,
+                  ...d,
+                }));
+                r.listaTrabajos = (data.listaTrabajos || []).map((t) => ({
+                  id: t.id || ++seq.trabajo,
+                  ...t,
+                }));
+                return r;
+              })()
+            )
+          )
+        : http("/resumenes/" + id, { method: "PUT", body: JSON.stringify(data) }),
     updateResena: (id, data) =>
       CONFIG.MOCK
         ? delay(
@@ -300,6 +325,16 @@ export const Api = {
             )
           )
         : http("/resumenes/" + id + "/imagenes", { method: "POST", body: JSON.stringify(data) }),
+    removeImagen: (resumenId, imagenId) =>
+      CONFIG.MOCK
+        ? delay(
+            (() => {
+              const r = db.resumenes.find((x) => x.id === resumenId);
+              if (r) r.listaImagenes = (r.listaImagenes || []).filter((img) => img.id !== imagenId);
+              return true;
+            })()
+          )
+        : http("/resumenes/" + resumenId + "/imagenes/" + imagenId, { method: "DELETE" }),
     remove: (id) =>
       CONFIG.MOCK
         ? delay(

@@ -10,8 +10,6 @@ import RegisterView from "./components/RegisterView";
 import PerfilView from "./components/PerfilView";
 import { Api, getToken } from "./api";
 
-const USER_KEY = "gm_user";
-
 function parseHash() {
   const h = window.location.hash.replace(/^#\/?/, "");
   if (h.startsWith("ticket/")) {
@@ -23,18 +21,9 @@ function parseHash() {
   return { route: "dashboard", ticketId: null };
 }
 
-function loadStoredUser() {
-  try {
-    const raw = localStorage.getItem(USER_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch (_e) {
-    return null;
-  }
-}
-
 export default function App() {
   const [{ route, ticketId }, setRouteState] = useState(parseHash());
-  const [usuario, setUsuario] = useState(loadStoredUser());
+  const [usuario, setUsuario] = useState(null);
   const [clientes, setClientes] = useState([]);
   const [resumenes, setResumenes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -54,7 +43,7 @@ export default function App() {
       const [r, c] = await Promise.all([resumenesPromise, clientesPromise]);
       setResumenes(r);
       if (esAdmin) setClientes(c);
-    } catch (_e) {
+    } catch {
       // Si fue un 401, el listener de "gm:unauthorized" ya se encarga de
       // cerrar la sesión y regresar al login; cualquier otro error se
       // ignora aquí por ahora (no hay una UI de error global todavía).
@@ -76,7 +65,6 @@ export default function App() {
   useEffect(() => {
     function onUnauthorized() {
       setUsuario(null);
-      localStorage.removeItem(USER_KEY);
       setResumenes([]);
       setClientes([]);
       navigate("login");
@@ -95,18 +83,16 @@ export default function App() {
 
   function guardarSesion(cliente, irADashboard = true) {
     setUsuario(cliente);
-    localStorage.setItem(USER_KEY, JSON.stringify(cliente));
     if (irADashboard) navigate("dashboard");
   }
 
   async function cerrarSesion() {
     try {
       await Api.auth.logout();
-    } catch (_e) {
+    } catch {
       // aunque falle en el servidor, igual se limpia la sesión local
     }
     setUsuario(null);
-    localStorage.removeItem(USER_KEY);
     setResumenes([]);
     setClientes([]);
     navigate("login");
@@ -144,12 +130,20 @@ export default function App() {
     await Api.resumenes.updateEstado(id, estado);
     await refresh();
   }
+  async function handleUpdateTicket(id, data) {
+    await Api.resumenes.update(id, data);
+    await refresh();
+  }
   async function handleUpdateResena(id, data) {
     await Api.resumenes.updateResena(id, data);
     await refresh();
   }
   async function handleUploadImagen(id, data) {
     await Api.resumenes.uploadImagen(id, data);
+    await refresh();
+  }
+  async function handleRemoveImagen(resumenId, imagenId) {
+    await Api.resumenes.removeImagen(resumenId, imagenId);
     await refresh();
   }
   async function handleDeleteTicket(id) {
@@ -202,9 +196,12 @@ export default function App() {
             esAdmin={esAdmin}
             onBack={() => navigate("tickets")}
             onUpdateEstado={handleUpdateEstado}
+            onUpdateTicket={handleUpdateTicket}
             onUpdateResena={handleUpdateResena}
             onUploadImagen={handleUploadImagen}
+            onRemoveImagen={handleRemoveImagen}
             onDelete={handleDeleteTicket}
+            clientes={clientes}
           />
         ) : rutaEfectiva === "clientes" ? (
           <ClientesView
@@ -212,6 +209,7 @@ export default function App() {
             resumenes={resumenes}
             onCreate={handleCreateCliente}
             onRemove={handleRemoveCliente}
+            onOpenTicket={openTicket}
           />
         ) : rutaEfectiva === "nuevo" ? (
           <NuevoTicketView

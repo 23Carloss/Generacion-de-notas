@@ -6,6 +6,7 @@ import Exceptions.PersistenciaException;
 import Util.JsonUtil;
 import Service.Mappers;
 import hp.models.Cliente;
+import Util.ValidationUtil;
 
 import java.io.IOException;
 import java.util.List;
@@ -41,7 +42,7 @@ public class ClienteServlet extends HttpServlet {
             List<ClienteDTO> dtos = clientes.stream().map(Mappers::toDTO).collect(Collectors.toList());
             JsonUtil.MAPPER.writeValue(resp.getWriter(), dtos);
         } catch (PersistenciaException e) {
-            enviarError(resp, 500, e.getMessage());
+            enviarError(resp, 500, "Ocurrió un error interno.");
         }
     }
  
@@ -58,14 +59,9 @@ public class ClienteServlet extends HttpServlet {
  
         try {
             ClienteDTO entrada = JsonUtil.MAPPER.readValue(req.getInputStream(), ClienteDTO.class);
-            if (entrada.getNombre() == null || entrada.getNombre().isBlank()
-                    || entrada.getTelefono() == null || entrada.getTelefono().isBlank()) {
-                enviarError(resp, 400, "nombre y telefono son obligatorios");
-                return;
-            }
             Cliente cliente = new Cliente();
-            cliente.setNombre(entrada.getNombre().trim());
-            cliente.setTelefono(entrada.getTelefono().trim());
+            cliente.setNombre(ValidationUtil.requiredText(entrada.getNombre(), "nombre", 120));
+            cliente.setTelefono(ValidationUtil.phone(entrada.getTelefono()));
             // Cliente creado por el admin desde "nuevo ticket": todavía sin
             // cuenta propia (sin correo/password), así que no puede iniciar
             // sesión hasta que alguien lo registre con ese mismo teléfono.
@@ -75,7 +71,7 @@ public class ClienteServlet extends HttpServlet {
             resp.setStatus(201);
             JsonUtil.MAPPER.writeValue(resp.getWriter(), Mappers.toDTO(cliente));
         } catch (PersistenciaException e) {
-            enviarError(resp, 500, e.getMessage());
+            enviarError(resp, 500, "Ocurrió un error interno.");
         }
     }
  
@@ -108,14 +104,9 @@ public class ClienteServlet extends HttpServlet {
             String telefono = texto(body.get("telefono"));
             String correo = texto(body.get("correo"));
  
-            if (nombre == null || nombre.isBlank()
-                    || telefono == null || telefono.isBlank()
-                    || correo == null || correo.isBlank()) {
-                enviarError(resp, 400, "nombre, telefono y correo son obligatorios");
-                return;
-            }
- 
-            String correoNormalizado = correo.trim().toLowerCase();
+            String nombreSeguro = ValidationUtil.requiredText(nombre, "nombre", 120);
+            String telefonoSeguro = ValidationUtil.phone(telefono);
+            String correoNormalizado = ValidationUtil.email(correo);
             if (!correoNormalizado.equals(cliente.getCorreo())) {
                 Cliente existente = clienteDAO.buscarPorCorreo(correoNormalizado);
                 if (existente != null && !existente.getId().equals(id)) {
@@ -124,14 +115,14 @@ public class ClienteServlet extends HttpServlet {
                 }
             }
  
-            cliente.setNombre(nombre.trim());
-            cliente.setTelefono(telefono.trim());
+            cliente.setNombre(nombreSeguro);
+            cliente.setTelefono(telefonoSeguro);
             cliente.setCorreo(correoNormalizado);
             clienteDAO.actualizar(cliente);
  
             JsonUtil.MAPPER.writeValue(resp.getWriter(), Mappers.toDTO(cliente));
         } catch (PersistenciaException e) {
-            enviarError(resp, 500, e.getMessage());
+            enviarError(resp, 500, "Ocurrió un error interno.");
         }
     }
  
@@ -153,7 +144,7 @@ public class ClienteServlet extends HttpServlet {
             resp.setStatus(204);
         } catch (PersistenciaException e) {
             // lo más común: el cliente tiene tickets asociados (FK)
-            enviarError(resp, 409, e.getMessage());
+            enviarError(resp, 409, "No se puede eliminar el cliente porque tiene datos relacionados.");
         }
     }
  

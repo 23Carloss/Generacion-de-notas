@@ -8,7 +8,9 @@ package Service;
 import DAOs.ClienteDAO;
 import DTOs.ClienteDTO;
 import Exceptions.PersistenciaException;
+import Exceptions.CredencialesInvalidasException;
 import Util.PasswordUtil;
+import Util.ValidationUtil;
 import hp.models.Cliente;
 
 /**
@@ -35,19 +37,27 @@ public class AuthService {
         }
     }
  
-    public LoginResult login(String correo, String password) throws PersistenciaException {
+    public LoginResult login(String correo, String password) throws PersistenciaException, CredencialesInvalidasException {
         if (correo == null || correo.isBlank() || password == null || password.isBlank()) {
-            throw new IllegalArgumentException("correo y password son obligatorios");
+            throw new CredencialesInvalidasException();
         }
- 
+
         Cliente cliente = clienteDAO.buscarPorCorreo(normalizarCorreo(correo));
         boolean credencialesValidas = cliente != null
-                && PasswordUtil.verificar(password, cliente.getPasswordSalt(), cliente.getPasswordHash());
- 
+                && PasswordUtil.verificar(password, cliente.getPasswordHash());
+
+        if (!credencialesValidas && cliente != null
+                && PasswordUtil.verificarLegado(password, cliente.getPasswordSalt(), cliente.getPasswordHash())) {
+            // Las cuentas existentes conservaban salt y SHA-256. Una vez que
+            // demuestran conocer su contraseña, se actualizan a BCrypt.
+            cliente.setPasswordHash(PasswordUtil.hash(password));
+            cliente.setPasswordSalt(null);
+            clienteDAO.actualizar(cliente);
+            credencialesValidas = true;
+        }
+
         if (!credencialesValidas) {
-            // Mismo mensaje si el correo no existe o si la contraseña es
-            // incorrecta, para no revelar qué correos están registrados.
-            throw new IllegalArgumentException("Correo o contraseña incorrectos");
+            throw new CredencialesInvalidasException();
         }
  
         String token = TokenService.emitirToken(cliente);
@@ -56,30 +66,25 @@ public class AuthService {
  
     public LoginResult registrar(String nombre, String telefono, String correo, String password)
             throws PersistenciaException {
-        if (nombre == null || nombre.isBlank()
-                || telefono == null || telefono.isBlank()
-                || correo == null || correo.isBlank()
-                || password == null || password.isBlank()) {
-            throw new IllegalArgumentException("nombre, telefono, correo y password son obligatorios");
-        }
+        String nombreSeguro = ValidationUtil.requiredText(nombre, "nombre", 120);
+        String telefonoSeguro = ValidationUtil.phone(telefono);
+        String correoNormalizado = ValidationUtil.email(correo);
         if (password.length() < PASSWORD_MIN_LENGTH) {
             throw new IllegalArgumentException(
                     "La contraseña debe tener al menos " + PASSWORD_MIN_LENGTH + " caracteres");
         }
+        PasswordUtil.validarLongitud(password);
  
-        String correoNormalizado = normalizarCorreo(correo);
         if (clienteDAO.buscarPorCorreo(correoNormalizado) != null) {
             throw new IllegalArgumentException("Ya existe una cuenta con ese correo");
         }
  
-        String salt = PasswordUtil.generarSalt();
-        String hash = PasswordUtil.hash(password, salt);
+        String hash = PasswordUtil.hash(password);
  
         Cliente cliente = new Cliente();
-        cliente.setNombre(nombre.trim());
-        cliente.setTelefono(telefono.trim());
+        cliente.setNombre(nombreSeguro);
+        cliente.setTelefono(telefonoSeguro);
         cliente.setCorreo(correoNormalizado);
-        cliente.setPasswordSalt(salt);
         cliente.setPasswordHash(hash);
         // El registro público siempre crea usuarios comunes; el rol
         // ADMINISTRADOR se asigna manualmente en la base de datos (ver
@@ -95,6 +100,10 @@ public class AuthService {
     }
  
     private String normalizarCorreo(String correo) {
-        return correo.trim().toLowerCase();
+        try {
+            return ValidationUtil.email(correo);
+        } catch (IllegalArgumentException e) {
+            return "";
+        }
     }
 }
