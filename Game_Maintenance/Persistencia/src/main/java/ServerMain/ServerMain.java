@@ -28,7 +28,7 @@ import Util.CorsFilter;
 public class ServerMain {
 
     public static void main(String[] args) throws Exception {
-        ManejadorConexiones.Inicializar();
+      ManejadorConexiones.Inicializar();
  
         int puerto = puertoConfigurado();
         Server server = new Server(puerto);
