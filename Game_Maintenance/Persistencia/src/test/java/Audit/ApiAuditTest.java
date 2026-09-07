@@ -107,6 +107,9 @@ class ApiAuditTest {
             ObjectNode bad = good.deepCopy(); ((ObjectNode) bad.at("/listaTrabajos/0")).put("precioUnitario", value);
             assertEquals(400, send("POST", "/resumenes", app.adminToken, bad).status, value);
         }
+        ObjectNode fraction = good.deepCopy();
+        ((ObjectNode) fraction.at("/listaTrabajos/0")).put("unidades", 50.9);
+        assertEquals(400, send("POST", "/resumenes", app.adminToken, fraction).status);
         assertEquals("PS4", send("GET", "/resumenes/" + id, app.adminToken, null).json().at("/listaDispositivos/0/modeloDispositivo").asText());
     }
     @Test void sqlPayloadsRemainDataAcrossTextFields() throws Exception {
@@ -152,10 +155,11 @@ class ApiAuditTest {
         assertEquals(403, raw("OPTIONS", "/clientes", null, "", false, "Origin: https://untrusted.example\r\n").status);
     }
     @Test void characterizeChunkedSizeBypass() throws Exception {
-        String payload = "x".repeat(Util.AppConfig.maxRequestBytes() + 1);
-        Reply result = raw("POST", "/auth/logout", null, payload, true, "");
-        assertEquals(204, result.status, "Finding SEC-01 changed: review the report if fixed.");
-        System.out.println("SEC-01 CONFIRMED: oversized chunked request accepted (204); fixed length rejected (413).");
+        String payload = " ".repeat(Util.AppConfig.maxRequestBytes()) + JsonUtil.MAPPER.writeValueAsString(contact("Chunked test"));
+        assertEquals(413, raw("POST", "/clientes", app.adminToken, payload, false, "").status);
+        Reply result = raw("POST", "/clientes", app.adminToken, payload, true, "");
+        assertEquals(201, result.status, "Finding SEC-01 changed: review the report if fixed.");
+        System.out.println("SEC-01 CONFIRMED: oversized chunked JSON parsed and accepted (201); same fixed-length body rejected (413).");
     }
     @Test void characterizeFakeImageAndCheckSvgAndOwnership() throws Exception {
         long id = createTicket(ticket());
@@ -184,5 +188,23 @@ class ApiAuditTest {
         assertEquals(429, result.status); assertTrue(result.headers.contains("Retry-After"));
         for (int i = 0; i < 8; i++) assertEquals(401, send("POST", "/auth/login", null, Map.of("correo", "spray" + i + "@example.test", "password", "wrong")).status);
         System.out.println("SEC-04 CONFIRMED: per-account limit returns 429; rotating accounts remain 401 from same requester.");
+    }
+    @Test void characterizeDeletedAccountSession() throws Exception {
+        Cliente c = new Cliente(); c.setNombre("Temporary admin"); c.setTelefono("6441112233");
+        c.setRol(Cliente.ROL.ADMINISTRADOR); new ClienteDAO().insertar(c);
+        String token = Service.TokenService.emitirToken(c);
+        try {
+            assertEquals(204, send("DELETE", "/clientes/" + c.getId(), app.adminToken, null).status);
+            assertEquals(200, send("GET", "/clientes", token, null).status);
+            System.out.println("SEC-05 CONFIRMED: deleted administrator's existing token still reads client directory (200).");
+        } finally { Service.TokenService.invalidar(token); }
+    }
+    @Test void descriptionLimitAlreadySupportedByApi() throws Exception {
+        ObjectNode d = ticket(); d.put("descripcionProblema", "x".repeat(2000));
+        Reply result = send("POST", "/resumenes", app.adminToken, d);
+        assertEquals(201, result.status);
+        assertEquals(2000, result.json().path("descripcionProblema").asText().length());
+        d.put("descripcionProblema", "x".repeat(2001));
+        assertEquals(400, send("POST", "/resumenes", app.adminToken, d).status);
     }
 }

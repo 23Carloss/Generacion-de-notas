@@ -74,11 +74,11 @@ export default function NuevoTicketView({ clientes, onCreateCliente, onCreateTic
         setClienteMode("existente");
       }
       await onCreateTicket({
-      cliente: clienteRef,
-      listaDispositivos: dispositivosValidos,
-      listaTrabajos: trabajosValidos,
-      descripcionProblema: descripcionProblema.trim(),
-      comentariosCliente: comentariosCliente.trim(),
+        cliente: clienteRef,
+        listaDispositivos: dispositivosValidos,
+        listaTrabajos: trabajosValidos,
+        descripcionProblema: descripcionProblema.trim(),
+        comentariosCliente: comentariosCliente.trim(),
       });
     } catch (e) {
       setError(e?.message || "No se pudo crear el ticket.");
