@@ -66,7 +66,7 @@ public class AuthService {
  
     public LoginResult registrar(String nombre, String telefono, String correo, String password)
             throws PersistenciaException {
-        String nombreSeguro = ValidationUtil.requiredText(nombre, "nombre", 120);
+        String nombreSeguro = ValidationUtil.requiredText(nombre, "nombre", 100);
         String telefonoSeguro = ValidationUtil.phone(telefono);
         String correoNormalizado = ValidationUtil.email(correo);
         if (password.length() < PASSWORD_MIN_LENGTH) {

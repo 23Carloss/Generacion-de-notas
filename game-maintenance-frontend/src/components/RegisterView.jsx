@@ -45,6 +45,7 @@ export default function RegisterView({ onRegister, onGoToLogin }) {
           <input
             className="input"
             placeholder="Nombre completo"
+            maxLength={100}
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
           />

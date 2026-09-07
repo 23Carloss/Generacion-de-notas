@@ -10,7 +10,7 @@
      POST   /auth/logout             header Authorization: Bearer <token>
      GET    /clientes                (solo ADMINISTRADOR)
      POST   /clientes                body: ClienteDTO                (solo ADMINISTRADOR)
-     PUT    /clientes/{id}           body: {nombre, telefono, correo}(solo el propio usuario)
+     PUT    /clientes/{id}           body: {nombre, telefono, correo}(administrador o propio perfil)
      DELETE /clientes/{id}                                            (solo ADMINISTRADOR)
      GET    /resumenes               ADMINISTRADOR: todos · USUARIO: solo los suyos
      GET    /resumenes/{id}

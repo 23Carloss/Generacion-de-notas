@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<persistence version="2.2" xmlns="http://xmlns.jcp.org/xml/ns/persistence">
+  <persistence-unit name="AuditPU" transaction-type="RESOURCE_LOCAL">
+    <provider>org.eclipse.persistence.jpa.PersistenceProvider</provider>
+    <class>hp.models.Cliente</class>
+    <class>hp.models.Resumen</class>
+    <class>hp.models.Dispositivo</class>
+    <class>hp.models.Trabajo</class>
+    <class>hp.models.Imagen</class>
+    <class>hp.models.Pieza</class>
+    <class>hp.models.Resumen_Dispositivos</class>
+    <exclude-unlisted-classes>true</exclude-unlisted-classes>
+    <properties>
+      <property name="javax.persistence.jdbc.driver" value="org.h2.Driver"/>
+      <property name="javax.persistence.jdbc.url" value="jdbc:h2:mem:gm_audit;MODE=LEGACY"/>
+      <property name="javax.persistence.jdbc.user" value="sa"/>
+      <property name="javax.persistence.jdbc.password" value=""/>
+      <property name="javax.persistence.schema-generation.database.action" value="create"/>
+      <property name="eclipselink.target-database" value="org.eclipse.persistence.platform.database.H2Platform"/>
+      <property name="eclipselink.weaving" value="false"/>
+      <property name="eclipselink.logging.level" value="SEVERE"/>
+    </properties>
+  </persistence-unit>
+</persistence>

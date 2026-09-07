@@ -21,6 +21,7 @@ import javax.servlet.http.HttpServletResponse;
  * Expone /api/clientes
  *   GET    /api/clientes         -> lista de clientes
  *   POST   /api/clientes         -> crea cliente (body: {nombre, telefono})
+ *   PUT    /api/clientes/{id}    -> edita contacto (administrador o propio perfil)
  *   DELETE /api/clientes/{id}    -> elimina cliente
  */
 public class ClienteServlet extends HttpServlet {
@@ -60,7 +61,7 @@ public class ClienteServlet extends HttpServlet {
         try {
             ClienteDTO entrada = JsonUtil.MAPPER.readValue(req.getInputStream(), ClienteDTO.class);
             Cliente cliente = new Cliente();
-            cliente.setNombre(ValidationUtil.requiredText(entrada.getNombre(), "nombre", 120));
+            cliente.setNombre(ValidationUtil.requiredText(entrada.getNombre(), "nombre", 100));
             cliente.setTelefono(ValidationUtil.phone(entrada.getTelefono()));
             // Cliente creado por el admin desde "nuevo ticket": todavía sin
             // cuenta propia (sin correo/password), así que no puede iniciar
@@ -70,6 +71,8 @@ public class ClienteServlet extends HttpServlet {
  
             resp.setStatus(201);
             JsonUtil.MAPPER.writeValue(resp.getWriter(), Mappers.toDTO(cliente));
+        } catch (IllegalArgumentException e) {
+            enviarError(resp, 400, e.getMessage());
         } catch (PersistenciaException e) {
             enviarError(resp, 500, "Ocurrió un error interno.");
         }
@@ -87,7 +90,8 @@ public class ClienteServlet extends HttpServlet {
         }
  
         Long callerId = (Long) req.getAttribute("clienteId");
-        if (callerId == null || !callerId.equals(id)) {
+        boolean esAdmin = req.getAttribute("rol") == Cliente.ROL.ADMINISTRADOR;
+        if (callerId == null || (!esAdmin && !callerId.equals(id))) {
             enviarError(resp, 403, "solo puedes editar tu propio perfil");
             return;
         }
@@ -104,10 +108,17 @@ public class ClienteServlet extends HttpServlet {
             String telefono = texto(body.get("telefono"));
             String correo = texto(body.get("correo"));
  
-            String nombreSeguro = ValidationUtil.requiredText(nombre, "nombre", 120);
+            String nombreSeguro = ValidationUtil.requiredText(nombre, "nombre", 100);
             String telefonoSeguro = ValidationUtil.phone(telefono);
-            String correoNormalizado = ValidationUtil.email(correo);
-            if (!correoNormalizado.equals(cliente.getCorreo())) {
+            // Omitir correo conserva el actual. Los contactos sin cuenta pueden
+            // dejarlo vacío; una cuenta existente debe conservar un correo válido.
+            String correoNormalizado = cliente.getCorreo();
+            if (body.containsKey("correo")) {
+                boolean sinCorreo = correo == null || correo.isBlank();
+                boolean tieneCuenta = cliente.getPasswordHash() != null && !cliente.getPasswordHash().isBlank();
+                correoNormalizado = sinCorreo && esAdmin && !tieneCuenta ? null : ValidationUtil.email(correo);
+            }
+            if (correoNormalizado != null && !correoNormalizado.equals(cliente.getCorreo())) {
                 Cliente existente = clienteDAO.buscarPorCorreo(correoNormalizado);
                 if (existente != null && !existente.getId().equals(id)) {
                     enviarError(resp, 400, "ese correo ya está en uso");
@@ -121,6 +132,8 @@ public class ClienteServlet extends HttpServlet {
             clienteDAO.actualizar(cliente);
  
             JsonUtil.MAPPER.writeValue(resp.getWriter(), Mappers.toDTO(cliente));
+        } catch (IllegalArgumentException e) {
+            enviarError(resp, 400, e.getMessage());
         } catch (PersistenciaException e) {
             enviarError(resp, 500, "Ocurrió un error interno.");
         }

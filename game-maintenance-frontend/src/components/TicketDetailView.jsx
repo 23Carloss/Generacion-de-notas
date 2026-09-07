@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import Badge from "./Badge";
 import EmptyState from "./EmptyState";
 import Stars from "./Stars";
+import Select from "./Select";
 import { ESTADOS, PLATAFORMAS, TIPOS_TRABAJO } from "../constants";
 import { money, fecha, totalTicket } from "../utils";
+import { LIMITS, prepareWorks, validateDevices } from "../formValidation";
 
 export default function TicketDetailView({
   resumen,
@@ -155,17 +157,15 @@ export default function TicketDetailView({
         <div className="card">
           {esAdmin && (
             <div className="field">
-              <label>Actualizar estado</label>
-              <select
+              <label htmlFor="ticket-estado">Actualizar estado</label>
+              <Select
+                id="ticket-estado"
+                label="Actualizar estado"
+                menuLabel="Selecciona un estado"
                 value={resumen.estado}
-                onChange={(e) => onUpdateEstado(resumen.id, e.target.value)}
-              >
-                {ESTADOS.map((e) => (
-                  <option key={e} value={e}>
-                    {e}
-                  </option>
-                ))}
-              </select>
+                onChange={(value) => onUpdateEstado(resumen.id, value)}
+                options={ESTADOS.map((value) => ({ value, label: value }))}
+              />
             </div>
           )}
           <div className="field">
@@ -287,34 +287,13 @@ function TicketEditor({ resumen, clientes, onCancel, onSave }) {
       return;
     }
 
-    const trabajosValidos = [];
-    for (const trabajo of trabajos) {
-      if (trabajo.tipoTrabajo === "REPARACION") {
-        if (!trabajo.nombrePieza.trim() || trabajo.unidades === "" || trabajo.precioUnitario === "") {
-          setError("En una reparación indica la pieza, las unidades y el precio por unidad.");
-          return;
-        }
-        const unidades = Number(trabajo.unidades);
-        const precioUnitario = Number(trabajo.precioUnitario);
-        if (!Number.isInteger(unidades) || unidades < 1 || precioUnitario < 0) {
-          setError("Las unidades deben ser al menos 1 y el precio por unidad no puede ser negativo.");
-          return;
-        }
-        trabajosValidos.push({
-          tipoTrabajo: trabajo.tipoTrabajo,
-          nombrePieza: trabajo.nombrePieza.trim(),
-          unidades,
-          precioUnitario,
-          precio: unidades * precioUnitario,
-        });
-      } else if (trabajo.precio !== "" && trabajo.precio != null) {
-        const precio = Number(trabajo.precio);
-        if (precio < 0) {
-          setError("El precio del trabajo no puede ser negativo.");
-          return;
-        }
-        trabajosValidos.push({ tipoTrabajo: trabajo.tipoTrabajo, precio });
-      }
+    let trabajosValidos;
+    try {
+      validateDevices(dispositivosValidos);
+      trabajosValidos = prepareWorks(trabajos);
+    } catch (e) {
+      setError(e.message);
+      return;
     }
 
     setGuardando(true);
@@ -323,7 +302,7 @@ function TicketEditor({ resumen, clientes, onCancel, onSave }) {
         cliente: { id: Number(clienteId) },
         listaDispositivos: dispositivosValidos.map(({ modeloDispositivo, detallesDispositivo, plataforma }) => ({
           modeloDispositivo: modeloDispositivo.trim(),
-          detallesDispositivo: detallesDispositivo.trim(),
+          detallesDispositivo: (detallesDispositivo || "").trim(),
           plataforma,
         })),
         listaTrabajos: trabajosValidos,
@@ -342,15 +321,18 @@ function TicketEditor({ resumen, clientes, onCancel, onSave }) {
       <div className="subblock">
         <h3>Cliente</h3>
         <div className="field">
-          <label>Cliente asignado</label>
-          <select value={clienteId} onChange={(e) => setClienteId(e.target.value)}>
-            <option value="">Selecciona un cliente</option>
-            {clientes.map((cliente) => (
-              <option key={cliente.id} value={cliente.id}>
-                {cliente.nombre} · {cliente.telefono}
-              </option>
-            ))}
-          </select>
+          <label htmlFor="editar-cliente">Cliente asignado</label>
+          <Select
+            id="editar-cliente"
+            label="Cliente asignado"
+            menuLabel="Selecciona un cliente"
+            value={clienteId}
+            onChange={setClienteId}
+            options={[
+              { value: "", label: "Selecciona un cliente" },
+              ...clientes.map((cliente) => ({ value: cliente.id, label: `${cliente.nombre} · ${cliente.telefono}` })),
+            ]}
+          />
         </div>
       </div>
 
@@ -358,13 +340,17 @@ function TicketEditor({ resumen, clientes, onCancel, onSave }) {
         <h3>Dispositivos</h3>
         {dispositivos.map((dispositivo, index) => (
           <div className="repeat-row" key={index}>
-            <input className="input" placeholder="Modelo" value={dispositivo.modeloDispositivo}
+            <input className="input" placeholder="Modelo" maxLength={LIMITS.deviceName} value={dispositivo.modeloDispositivo}
               onChange={(e) => updateDispositivo(index, "modeloDispositivo", e.target.value)} />
-            <input className="input" placeholder="Detalles / accesorios" value={dispositivo.detallesDispositivo || ""}
+            <input className="input" placeholder="Detalles / accesorios" maxLength={LIMITS.deviceDetails} value={dispositivo.detallesDispositivo || ""}
               onChange={(e) => updateDispositivo(index, "detallesDispositivo", e.target.value)} />
-            <select value={dispositivo.plataforma} onChange={(e) => updateDispositivo(index, "plataforma", e.target.value)}>
-              {Object.keys(PLATAFORMAS).map((plataforma) => <option key={plataforma} value={plataforma}>{PLATAFORMAS[plataforma]}</option>)}
-            </select>
+            <Select
+              label={`Plataforma del dispositivo ${index + 1}`}
+              menuLabel="Selecciona una plataforma"
+              value={dispositivo.plataforma}
+              onChange={(value) => updateDispositivo(index, "plataforma", value)}
+              options={Object.entries(PLATAFORMAS).map(([value, label]) => ({ value, label }))}
+            />
             <button className="remove-x" type="button" title="Quitar dispositivo"
               onClick={() => setDispositivos((prev) => prev.filter((_, i) => i !== index))}>✕</button>
           </div>
@@ -390,9 +376,13 @@ function TicketEditor({ resumen, clientes, onCancel, onSave }) {
         {trabajos.map((trabajo, index) => (
           <div className="trabajo-editor" key={index}>
             <div className="repeat-row trabajo-row">
-              <select value={trabajo.tipoTrabajo} onChange={(e) => updateTrabajo(index, "tipoTrabajo", e.target.value)}>
-                {Object.keys(TIPOS_TRABAJO).map((tipo) => <option key={tipo} value={tipo}>{TIPOS_TRABAJO[tipo]}</option>)}
-              </select>
+              <Select
+                label={`Tipo de trabajo ${index + 1}`}
+                menuLabel="Selecciona un tipo de trabajo"
+                value={trabajo.tipoTrabajo}
+                onChange={(value) => updateTrabajo(index, "tipoTrabajo", value)}
+                options={Object.entries(TIPOS_TRABAJO).map(([value, label]) => ({ value, label }))}
+              />
               {trabajo.tipoTrabajo === "REPARACION" ? (
                 <div className="repair-price-note">El total se calcula con las unidades y el precio por unidad.</div>
               ) : (
@@ -404,11 +394,11 @@ function TicketEditor({ resumen, clientes, onCancel, onSave }) {
             </div>
             {trabajo.tipoTrabajo === "REPARACION" && (
               <div className="repair-fields">
-                <input className="input" placeholder="Nombre de la pieza" value={trabajo.nombrePieza}
+                <input className="input" placeholder="Nombre de la pieza" maxLength={LIMITS.partName} value={trabajo.nombrePieza}
                   onChange={(e) => updateTrabajo(index, "nombrePieza", e.target.value)} />
-                <input className="input" type="number" min="1" step="1" placeholder="Unidades" value={trabajo.unidades}
+                <input className="input" type="number" min="1" max={LIMITS.units} step="1" placeholder="Unidades" value={trabajo.unidades}
                   onChange={(e) => updateTrabajo(index, "unidades", e.target.value)} />
-                <input className="input" type="number" min="0" step="0.01" placeholder="Precio por unidad" value={trabajo.precioUnitario}
+                <input className="input" type="number" min="0" max={LIMITS.unitPrice} step="0.01" placeholder="Precio por unidad" value={trabajo.precioUnitario}
                   onChange={(e) => updateTrabajo(index, "precioUnitario", e.target.value)} />
               </div>
             )}
@@ -589,12 +579,19 @@ function FormularioSubirFoto({ resumenId, onUploadImagen }) {
           />
         </div>
         <div className="field">
-          <label>Tipo (opcional)</label>
-          <select value={tipo} onChange={(e) => setTipo(e.target.value)}>
-            <option value="">Sin especificar</option>
-            <option value="ANTES">Antes</option>
-            <option value="DESPUES">Después</option>
-          </select>
+          <label htmlFor="foto-tipo">Tipo (opcional)</label>
+          <Select
+            id="foto-tipo"
+            label="Tipo de foto (opcional)"
+            menuLabel="Selecciona un tipo de foto"
+            value={tipo}
+            onChange={setTipo}
+            options={[
+              { value: "", label: "Sin especificar" },
+              { value: "ANTES", label: "Antes" },
+              { value: "DESPUES", label: "Después" },
+            ]}
+          />
         </div>
       </div>
       {error && <div className="error-text">{error}</div>}

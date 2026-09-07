@@ -1,13 +1,14 @@
 import { useState } from "react";
 import EmptyState from "./EmptyState";
 import { ROLES } from "../constants";
+import PhoneField from "./PhoneField";
+import { joinPhone, splitPhone } from "../phone";
+import { LIMITS } from "../formValidation";
 
-export default function ClientesView({ clientes, resumenes, onCreate, onRemove, onOpenTicket }) {
+export default function ClientesView({ clientes, resumenes, onCreate, onUpdate, onRemove, onOpenTicket }) {
   const [query, setQuery] = useState("");
   const [adding, setAdding] = useState(false);
-  const [nombre, setNombre] = useState("");
-  const [telefono, setTelefono] = useState("");
-  const [error, setError] = useState("");
+  const [editing, setEditing] = useState(null);
   const [clienteSeleccionadoId, setClienteSeleccionadoId] = useState(null);
 
   const q = query.toLowerCase();
@@ -16,22 +17,6 @@ export default function ClientesView({ clientes, resumenes, onCreate, onRemove, 
         (c) => c.nombre.toLowerCase().includes(q) || (c.telefono || "").includes(q)
       )
     : clientes;
-
-  async function handleSave() {
-    if (!nombre.trim() || !telefono.trim()) {
-      setError("Nombre y teléfono son obligatorios.");
-      return;
-    }
-    try {
-      await onCreate({ nombre: nombre.trim(), telefono: telefono.trim() });
-      setAdding(false);
-      setNombre("");
-      setTelefono("");
-      setError("");
-    } catch (e) {
-      setError(e?.message || "No se pudo guardar el cliente.");
-    }
-  }
 
   const clienteSeleccionado = clientes.find((c) => c.id === clienteSeleccionadoId);
   const ticketsCliente = clienteSeleccionado
@@ -46,40 +31,20 @@ export default function ClientesView({ clientes, resumenes, onCreate, onRemove, 
           <h1>Clientes</h1>
           <p>Datos de contacto de quienes han dejado equipo en el taller.</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setAdding((v) => !v)}>
+        <button className="btn btn-primary" onClick={() => { setEditing(null); setAdding((v) => !v); }}>
           + Nuevo cliente
         </button>
       </div>
 
-      {adding && (
-        <div className="card" style={{ marginBottom: "1.4rem" }}>
-          <div className="row2">
-            <div className="field">
-              <label>Nombre</label>
-              <input
-                className="input"
-                placeholder="Nombre completo"
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label>Teléfono</label>
-              <input
-                className="input"
-                placeholder="10 dígitos"
-                value={telefono}
-                inputMode="numeric"
-                maxLength={10}
-                onChange={(e) => setTelefono(e.target.value.replace(/\D/g, ""))}
-              />
-            </div>
-          </div>
-          {error && <div className="error-text">{error}</div>}
-          <button className="btn btn-primary" onClick={handleSave}>
-            Guardar cliente
-          </button>
-        </div>
+      {(adding || editing) && (
+        <ClienteForm key={editing?.id ?? "nuevo"} cliente={editing}
+          onCancel={() => { setAdding(false); setEditing(null); }}
+          onSave={async (data) => {
+            if (editing) await onUpdate(editing.id, data);
+            else await onCreate(data);
+            setAdding(false);
+            setEditing(null);
+          }} />
       )}
 
       <div className="toolbar">
@@ -87,8 +52,10 @@ export default function ClientesView({ clientes, resumenes, onCreate, onRemove, 
           className="input"
           style={{ minWidth: 260 }}
           placeholder="Buscar por nombre o teléfono…"
+          aria-label="Buscar clientes"
+          maxLength={LIMITS.search}
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => setQuery(e.target.value.slice(0, LIMITS.search))}
         />
       </div>
 
@@ -118,6 +85,9 @@ export default function ClientesView({ clientes, resumenes, onCreate, onRemove, 
                       onClick={() => setClienteSeleccionadoId(c.id)}
                     >
                       Ver información
+                    </button>{" "}
+                    <button className="btn btn-ghost btn-small" onClick={() => { setAdding(false); setEditing(c); }}>
+                      Editar
                     </button>{" "}
                     <button className="btn btn-ghost btn-small" onClick={() => onRemove(c.id)}>
                       Eliminar
@@ -185,5 +155,58 @@ export default function ClientesView({ clientes, resumenes, onCreate, onRemove, 
         </section>
       )}
     </>
+  );
+}
+
+function ClienteForm({ cliente, onSave, onCancel }) {
+  const [nombre, setNombre] = useState(cliente?.nombre || "");
+  const [phone, setPhone] = useState(() => splitPhone(cliente?.telefono || ""));
+  const [correo, setCorreo] = useState(cliente?.correo || "");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function save(e) {
+    e.preventDefault();
+    setError("");
+    if (!nombre.trim() || nombre.trim().length > LIMITS.clientName) {
+      setError("El nombre debe tener entre 1 y 100 caracteres.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const original = splitPhone(cliente?.telefono || "");
+      const unchanged = cliente && phone.dialCode === original.dialCode && phone.number === original.number;
+      const telefono = unchanged ? cliente.telefono : joinPhone(phone);
+      await onSave({ nombre: nombre.trim(), telefono, ...(cliente ? { correo: correo.trim() } : {}) });
+    } catch (err) {
+      setError(err?.message || "No se pudo guardar el cliente.");
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <form className="card" style={{ marginBottom: "1.4rem" }} onSubmit={save}>
+      <h2>{cliente ? "Editar cliente" : "Nuevo cliente"}</h2>
+      <div className="row2">
+        <div className="field">
+          <label htmlFor="cliente-nombre">Nombre</label>
+          <input id="cliente-nombre" className="input" placeholder="Nombre completo" value={nombre}
+            required maxLength={LIMITS.clientName} disabled={saving}
+            onChange={(e) => setNombre(e.target.value.slice(0, LIMITS.clientName))} />
+          <span className="hint">{nombre.length}/100 caracteres</span>
+        </div>
+        <PhoneField value={phone} onChange={setPhone} disabled={saving} />
+      </div>
+      {cliente && <div className="field">
+        <label htmlFor="cliente-correo">Correo</label>
+        <input id="cliente-correo" className="input" type="email" maxLength={254} value={correo}
+          disabled={saving} onChange={(e) => setCorreo(e.target.value)} />
+        <span className="hint">Si tiene cuenta, cambiar el correo cambiará su dirección de inicio de sesión.</span>
+      </div>}
+      {error && <div className="error-text" role="alert">{error}</div>}
+      <div className="toolbar">
+        <button className="btn btn-primary" type="submit" disabled={saving}>{saving ? "Guardando…" : "Guardar cliente"}</button>
+        <button className="btn btn-ghost" type="button" disabled={saving} onClick={onCancel}>Cancelar</button>
+      </div>
+    </form>
   );
 }

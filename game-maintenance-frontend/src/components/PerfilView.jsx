@@ -45,7 +45,7 @@ export default function PerfilView({ usuario, onUpdate }) {
         </div>
         <div className="field">
           <label>Nombre</label>
-          <input className="input" value={nombre} onChange={(e) => setNombre(e.target.value)} />
+          <input className="input" maxLength={100} value={nombre} onChange={(e) => setNombre(e.target.value)} />
         </div>
         <div className="field">
           <label>Teléfono</label>

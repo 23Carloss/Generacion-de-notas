@@ -127,28 +127,7 @@ public class ResumenService extends HttpServlet {
             resumen.setFechaCreacion(LocalDateTime.now());
             em.persist(resumen);
  
-            List<Dispositivo> dispositivosCreados = new ArrayList<>();
-            if (entrada.getListaDispositivos() != null) {
-                for (DispositivoDTO d : entrada.getListaDispositivos()) {
-                    if (d == null) {
-                        throw new IllegalArgumentException("La lista de dispositivos contiene un elemento inválido.");
-                    }
-                    Dispositivo dispositivo = new Dispositivo();
-                    dispositivo.setModeloDispositivo(Util.ValidationUtil.requiredText(
-                            d.getModeloDispositivo(), "modeloDispositivo", 160));
-                    dispositivo.setDetallesDispositivo(d.getDetallesDispositivo() == null
-                            ? null : Util.ValidationUtil.requiredText(d.getDetallesDispositivo(), "detallesDispositivo", 1_000));
-                    if (d.getPlataforma() == null) {
-                        throw new IllegalArgumentException("plataforma es obligatoria.");
-                    }
-                    if (d.getPlataforma() != null) {
-                        dispositivo.setPlataforma(Dispositivo.Plataforma.valueOf(d.getPlataforma().name()));
-                    }
-                    dispositivo.setResumen(resumen);
-                    em.persist(dispositivo);
-                    dispositivosCreados.add(dispositivo);
-                }
-            }
+            List<Dispositivo> dispositivosCreados = crearDispositivos(em, resumen, entrada.getListaDispositivos());
  
             List<Trabajo> trabajosCreados = crearTrabajos(em, resumen, entrada.getListaTrabajos());
  
@@ -229,9 +208,9 @@ public class ResumenService extends HttpServlet {
             }
             Dispositivo dispositivo = new Dispositivo();
             dispositivo.setModeloDispositivo(Util.ValidationUtil.requiredText(
-                    d.getModeloDispositivo(), "modeloDispositivo", 160));
+                    d.getModeloDispositivo(), "modeloDispositivo", 50));
             dispositivo.setDetallesDispositivo(textoOpcional(
-                    d.getDetallesDispositivo(), "detallesDispositivo", 1_000));
+                    d.getDetallesDispositivo(), "detallesDispositivo", 150));
             dispositivo.setPlataforma(Dispositivo.Plataforma.valueOf(d.getPlataforma().name()));
             dispositivo.setResumen(resumen);
             em.persist(dispositivo);
@@ -253,15 +232,15 @@ public class ResumenService extends HttpServlet {
             Trabajo.TipoTrabajo tipo = Trabajo.TipoTrabajo.valueOf(t.getTipoTrabajo().name());
             trabajo.setTipoTrabajo(tipo);
             if (tipo == Trabajo.TipoTrabajo.REPARACION) {
-                if (t.getUnidades() == null || t.getUnidades() < 1 || t.getUnidades() > 10_000
-                        || !precioValido(t.getPrecioUnitario())) {
-                    throw new IllegalArgumentException("La reparación debe incluir pieza, unidades y precio por unidad válidos.");
+                if (t.getUnidades() == null || t.getUnidades() < 1 || t.getUnidades() > 50
+                        || !precioValido(t.getPrecioUnitario()) || t.getPrecioUnitario() > 50_000) {
+                    throw new IllegalArgumentException("La reparación permite de 1 a 50 unidades y un precio unitario entre 0 y 50,000 MXN.");
                 }
-                trabajo.setNombrePieza(Util.ValidationUtil.requiredText(t.getNombrePieza(), "nombrePieza", 160));
+                trabajo.setNombrePieza(Util.ValidationUtil.requiredText(t.getNombrePieza(), "nombrePieza", 75));
                 trabajo.setUnidades(t.getUnidades());
                 trabajo.setPrecioUnitario(t.getPrecioUnitario());
                 double total = t.getUnidades() * t.getPrecioUnitario();
-                if (total > 1_000_000) {
+                if (!Double.isFinite(total) || total > 2_500_000) {
                     throw new IllegalArgumentException("El precio total de la reparación excede el límite permitido.");
                 }
                 trabajo.setPrecio(total);

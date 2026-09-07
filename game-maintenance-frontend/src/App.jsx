@@ -114,12 +114,19 @@ export default function App() {
 
   async function handleCreateCliente(data) {
     const created = await Api.clientes.create(data);
-    await refresh();
+    setClientes((prev) => [...prev, created]);
     return created;
   }
   async function handleRemoveCliente(id) {
     await Api.clientes.remove(id);
     await refresh();
+  }
+  async function handleUpdateCliente(id, data) {
+    const actualizado = await Api.clientes.update(id, data);
+    setClientes((prev) => prev.map((c) => c.id === id ? actualizado : c));
+    setResumenes((prev) => prev.map((r) => r.cliente?.id === id ? { ...r, cliente: actualizado } : r));
+    if (usuario.id === id) guardarSesion(actualizado, false);
+    return actualizado;
   }
   async function handleCreateTicket(payload) {
     const created = await Api.resumenes.create(payload);
@@ -208,6 +215,7 @@ export default function App() {
             clientes={clientes}
             resumenes={resumenes}
             onCreate={handleCreateCliente}
+            onUpdate={handleUpdateCliente}
             onRemove={handleRemoveCliente}
             onOpenTicket={openTicket}
           />
