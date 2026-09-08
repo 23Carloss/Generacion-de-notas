@@ -23,11 +23,15 @@ const assert = require('node:assert/strict');
       await page.getByPlaceholder('tu@correo.com').fill(email);
       await page.locator('input[type=password]').fill('Audit-only-123!');
       await page.getByRole('button', { name: 'Entrar', exact: true }).click();
-      await page.locator('.user-name').waitFor();
+      await page.getByRole('button', { name: 'Abrir menú', exact: true }).waitFor();
+    }
+    async function navigate(name) {
+      await page.getByRole('button', { name: 'Abrir menú', exact: true }).click();
+      await page.getByRole('navigation', { name: 'Apartados' }).getByRole('button', { name, exact: true }).click();
     }
     await page.goto('http://127.0.0.1:4175');
     await login('audit-admin@example.test');
-    await page.getByRole('button', { name: 'Clientes', exact: true }).click();
+    await navigate('Clientes');
     const search = page.getByRole('textbox', { name: 'Buscar clientes' });
     await search.fill('q'.repeat(121)); assert.equal((await search.inputValue()).length, 120);
     await search.fill('');
@@ -52,7 +56,7 @@ const assert = require('node:assert/strict');
     await page.getByRole('cell', { name: 'Cliente UI editado', exact: true }).waitFor();
     console.log('PASS: búsqueda 120, nombre 100, lada, teléfono numérico, edición, XSS mostrado como texto.');
 
-    await page.getByRole('button', { name: 'Nuevo ticket', exact: true }).click();
+    await navigate('Nuevo ticket');
     await choose('Selecciona cliente', 'Cliente UI editado · +526441234567');
     const model = page.getByPlaceholder('Modelo (ej. PS4 Slim)');
     const details = page.getByPlaceholder('Detalles / accesorios / daños visibles');
@@ -82,7 +86,7 @@ const assert = require('node:assert/strict');
     await page.getByRole('button', { name: 'Editar ticket', exact: true }).waitFor();
     console.log('PASS: dispositivo 50/150, pieza 75, unidades/precio máximos, creación y edición persistidas en API.');
 
-    await page.getByRole('button', { name: 'Clientes', exact: true }).click();
+    await navigate('Clientes');
     await page.getByRole('button', { name: '+ Nuevo cliente', exact: true }).click();
     await page.setViewportSize({ width: 390, height: 844 });
     await page.locator('.phone-field').scrollIntoViewIfNeeded();
@@ -90,6 +94,7 @@ const assert = require('node:assert/strict');
     assert.ok(box.width > 100 && box.x >= 0 && box.x + box.width <= 390, 'Phone form fits mobile viewport');
     await page.screenshot({ path: 'tests/phone-mobile.png' });
     await page.setViewportSize({ width: 1280, height: 900 });
+    await page.getByRole('button', { name: 'Abrir menú', exact: true }).click();
     await page.getByRole('button', { name: 'Cerrar sesión', exact: true }).click();
     await login('audit-user@example.test');
     assert.equal(await page.getByRole('button', { name: 'Clientes', exact: true }).count(), 0);

@@ -196,6 +196,8 @@ public class ResumenServlet extends HttpServlet {
                 actualizarEstado(req, resp, id);
             } else if ("resena".equals(subruta)) {
                 actualizarResena(req, resp, id);
+            } else if ("resena-publica".equals(subruta)) {
+                publicarResena(req, resp, id);
             } else {
                 enviarError(resp, 404, "ruta no soportada");
             }
@@ -206,6 +208,21 @@ public class ResumenServlet extends HttpServlet {
         } catch (PersistenciaException e) {
             enviarError(resp, 500, "Ocurrió un error interno.");
         }
+    }
+
+    public record PublicacionResena(String texto, String resenaOriginal, boolean confirmado) {}
+
+    private void publicarResena(HttpServletRequest req, HttpServletResponse resp, Long id) throws IOException {
+        if (req.getAttribute("rol") != Cliente.ROL.ADMINISTRADOR) {
+            enviarError(resp, 403, "solo un administrador puede publicar reseñas");
+            return;
+        }
+        PublicacionResena body = JsonUtil.MAPPER.readValue(req.getInputStream(), PublicacionResena.class);
+        if (body == null) throw new IllegalArgumentException("Faltan los datos de publicación.");
+        boolean existe = new Service.TrabajosResueltosService().publicar(
+                id, body.texto(), body.resenaOriginal(), body.confirmado());
+        if (existe) resp.setStatus(204);
+        else enviarError(resp, 404, "ticket no encontrado");
     }
 
     private void actualizarTicket(HttpServletRequest req, HttpServletResponse resp, Long id)

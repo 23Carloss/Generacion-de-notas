@@ -8,6 +8,7 @@ import NuevoTicketView from "./components/NuevoTicketView";
 import LoginView from "./components/Loginview";
 import RegisterView from "./components/RegisterView";
 import PerfilView from "./components/PerfilView";
+import TrabajosResueltosView from "./components/TrabajosResueltosView";
 import { Api, getToken } from "./api";
 
 function parseHash() {
@@ -15,7 +16,7 @@ function parseHash() {
   if (h.startsWith("ticket/")) {
     return { route: "ticket", ticketId: Number(h.split("/")[1]) };
   }
-  if (["dashboard", "nuevo", "tickets", "clientes", "perfil", "login", "registro"].includes(h)) {
+  if (["dashboard", "nuevo", "tickets", "clientes", "perfil", "login", "registro", "resueltos"].includes(h)) {
     return { route: h, ticketId: null };
   }
   return { route: "dashboard", ticketId: null };
@@ -145,6 +146,10 @@ export default function App() {
     await Api.resumenes.updateResena(id, data);
     await refresh();
   }
+  async function handlePublicarResena(id, data) {
+    await Api.resumenes.publicarResena(id, data);
+    await refresh();
+  }
   async function handleUploadImagen(id, data) {
     await Api.resumenes.uploadImagen(id, data);
     await refresh();
@@ -184,7 +189,7 @@ export default function App() {
         esAdmin={esAdmin}
         onLogout={cerrarSesion}
       />
-      <main className="main">
+      <main className="main" id="contenido" tabIndex={-1}>
         {loading ? (
           <p className="hint">Cargando…</p>
         ) : rutaEfectiva === "dashboard" ? (
@@ -195,6 +200,8 @@ export default function App() {
             esAdmin={esAdmin}
             usuario={usuario}
           />
+        ) : rutaEfectiva === "resueltos" ? (
+          <TrabajosResueltosView />
         ) : rutaEfectiva === "tickets" ? (
           <TicketsView resumenes={resumenes} onNavigate={navigate} onOpenTicket={openTicket} esAdmin={esAdmin} />
         ) : rutaEfectiva === "ticket" ? (
@@ -205,6 +212,7 @@ export default function App() {
             onUpdateEstado={handleUpdateEstado}
             onUpdateTicket={handleUpdateTicket}
             onUpdateResena={handleUpdateResena}
+            onPublicarResena={handlePublicarResena}
             onUploadImagen={handleUploadImagen}
             onRemoveImagen={handleRemoveImagen}
             onDelete={handleDeleteTicket}

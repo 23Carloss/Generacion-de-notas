@@ -1,5 +1,6 @@
 import TicketCard from "./TicketCard";
 import EmptyState from "./EmptyState";
+import TrabajosResueltosView from "./TrabajosResueltosView";
 import { money, totalTicket } from "../utils";
 
 export default function DashboardView({ resumenes, onNavigate, onOpenTicket, esAdmin, usuario }) {
@@ -37,6 +38,8 @@ export default function DashboardView({ resumenes, onNavigate, onOpenTicket, esA
         <StatCard num={listos} lbl="Listos para entrega" />
         <StatCard num={money(ingresos)} lbl={esAdmin ? "Ingresos estimados" : "Total de mis tickets"} />
       </div>
+
+      {!esAdmin && <TrabajosResueltosView compact onNavigate={onNavigate} />}
 
       <div className="view-header" style={{ marginBottom: "1rem" }}>
         <h1 style={{ fontSize: "1.05rem" }}>Tickets recientes</h1>

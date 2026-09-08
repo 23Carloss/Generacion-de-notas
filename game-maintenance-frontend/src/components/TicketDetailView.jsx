@@ -3,6 +3,7 @@ import Badge from "./Badge";
 import EmptyState from "./EmptyState";
 import Stars from "./Stars";
 import Select from "./Select";
+import PublicarResena from "./PublicarResena";
 import { ESTADOS, PLATAFORMAS, TIPOS_TRABAJO } from "../constants";
 import { money, fecha, totalTicket } from "../utils";
 import { LIMITS, prepareWorks, validateDevices } from "../formValidation";
@@ -14,6 +15,7 @@ export default function TicketDetailView({
   onUpdateEstado,
   onUpdateTicket,
   onUpdateResena,
+  onPublicarResena,
   onUploadImagen,
   onRemoveImagen,
   onDelete,
@@ -147,7 +149,7 @@ export default function TicketDetailView({
           <div className="subblock">
             <h3>Reseña del cliente</h3>
             {esAdmin ? (
-              <ReseñaSoloLectura resumen={resumen} />
+              <><ReseñaSoloLectura resumen={resumen} /><PublicarResena key={resumen.id + (resumen.resenaPublica || "")} resumen={resumen} onPublicar={onPublicarResena} /></>
             ) : (
               <ReseñaFormulario resumen={resumen} onUpdateResena={onUpdateResena} />
             )}
@@ -681,6 +683,7 @@ function ReseñaFormulario({ resumen, onUpdateResena }) {
           className="input"
           rows={3}
           placeholder="Cuéntanos cómo fue tu experiencia con el servicio…"
+          maxLength={1000}
           value={comentario}
           onChange={(e) => setComentario(e.target.value)}
         />
@@ -689,6 +692,7 @@ function ReseñaFormulario({ resumen, onUpdateResena }) {
       <button className="btn btn-primary btn-small" onClick={handlePublicar} disabled={enviando}>
         {enviando ? "Publicando…" : resumen.calificacion ? "Actualizar reseña" : "Publicar reseña"}
       </button>
+      <p className="hint">Tu calificación se mostrará de forma anónima en trabajos resueltos. El texto solo se mostrará como fragmento revisado por el administrador, sin datos personales. Evita incluirlos en tu comentario.</p>
       {enviado && <p className="hint" style={{ marginTop: ".5rem" }}>¡Gracias por tu reseña!</p>}
     </div>
   );

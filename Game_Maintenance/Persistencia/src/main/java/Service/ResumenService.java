@@ -156,7 +156,7 @@ public class ResumenService extends HttpServlet {
         EntityManager em = ManejadorConexiones.getEntityManager();
         try {
             em.getTransaction().begin();
-            Resumen resumen = em.find(Resumen.class, id);
+            Resumen resumen = em.find(Resumen.class, id, javax.persistence.LockModeType.PESSIMISTIC_WRITE);
             if (resumen == null) {
                 em.getTransaction().rollback();
                 return null;
@@ -166,10 +166,15 @@ public class ResumenService extends HttpServlet {
                 throw new IllegalArgumentException("El cliente indicado no existe");
             }
 
+            if (resumen.getCliente() == null || !cliente.getId().equals(resumen.getCliente().getId())) {
+                resumen.setResenaComentario(null);
+                resumen.setCalificacion(null);
+            }
             resumen.setCliente(cliente);
             resumen.setDescripcionProblema(Util.ValidationUtil.requiredText(
                     entrada.getDescripcionProblema(), "descripcionProblema", 2_000));
             resumen.setComentariosCliente(textoOpcional(entrada.getComentariosCliente(), "comentariosCliente", 2_000));
+            resumen.setResenaPublica(null);
 
             em.createQuery("DELETE FROM Dispositivo d WHERE d.resumen.id = :id")
                     .setParameter("id", id).executeUpdate();
@@ -273,12 +278,13 @@ public class ResumenService extends HttpServlet {
         EntityManager em = ManejadorConexiones.getEntityManager();
         try {
             em.getTransaction().begin();
-            Resumen resumen = em.find(Resumen.class, id);
+            Resumen resumen = em.find(Resumen.class, id, javax.persistence.LockModeType.PESSIMISTIC_WRITE);
             if (resumen == null) {
                 em.getTransaction().rollback();
                 return null;
             }
             resumen.setEstado(Mappers.estadoDesdeFrontend(estadoFrontend));
+            if (resumen.getEstado() != Resumen.ESTADO.Entregado) resumen.setResenaPublica(null);
             em.getTransaction().commit();
  
             List<Dispositivo> dispositivos = dispositivoDAO.listarPorResumen(id);
@@ -317,7 +323,7 @@ public class ResumenService extends HttpServlet {
         EntityManager em = ManejadorConexiones.getEntityManager();
         try {
             em.getTransaction().begin();
-            Resumen resumen = em.find(Resumen.class, idResumen);
+            Resumen resumen = em.find(Resumen.class, idResumen, javax.persistence.LockModeType.PESSIMISTIC_WRITE);
             if (resumen == null) {
                 em.getTransaction().rollback();
                 return null;
@@ -336,6 +342,7 @@ public class ResumenService extends HttpServlet {
             resumen.setResenaComentario(comentario == null || comentario.isBlank() ? null
                     : Util.ValidationUtil.requiredText(comentario, "resenaComentario", 1_000));
             resumen.setCalificacion(calificacion);
+            resumen.setResenaPublica(null);
             em.getTransaction().commit();
  
             List<Dispositivo> dispositivos = dispositivoDAO.listarPorResumen(idResumen);

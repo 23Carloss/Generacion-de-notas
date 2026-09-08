@@ -60,7 +60,7 @@ export default function ClientesView({ clientes, resumenes, onCreate, onUpdate, 
       </div>
 
       {list.length ? (
-        <table>
+        <div className="table-scroll" role="region" aria-label="Lista de clientes" tabIndex={0}><table>
           <thead>
             <tr>
               <th>Nombre</th>
@@ -97,7 +97,7 @@ export default function ClientesView({ clientes, resumenes, onCreate, onUpdate, 
               );
             })}
           </tbody>
-        </table>
+        </table></div>
       ) : (
         <EmptyState
           title="Sin clientes"

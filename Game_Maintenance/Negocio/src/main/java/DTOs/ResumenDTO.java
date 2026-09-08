@@ -24,6 +24,10 @@ public class ResumenDTO {
     private String estado;
     private String fechaCreacion;
     private String resenaComentario;
+    private String resenaPublica;
+
+    public String getResenaPublica() { return resenaPublica; }
+    public void setResenaPublica(String texto) { this.resenaPublica = texto; }
     private Integer calificacion;
     private List<ImagenDTO> listaImagenes;
 

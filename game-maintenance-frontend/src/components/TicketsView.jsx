@@ -39,7 +39,7 @@ export default function TicketsView({ resumenes, onNavigate, onOpenTicket, esAdm
       <div className="toolbar">
         <input
           className="input"
-          style={{ minWidth: 260 }}
+          style={{ maxWidth: 460 }}
           placeholder={esAdmin ? "Buscar cliente, equipo o estado…" : "Buscar equipo o estado…"}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -67,4 +67,3 @@ export default function TicketsView({ resumenes, onNavigate, onOpenTicket, esAdm
     </>
   );
 }
-

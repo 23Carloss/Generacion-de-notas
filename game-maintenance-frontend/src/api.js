@@ -168,6 +168,9 @@ const MOCK_ADMIN = { id: 1, nombre: "Admin Demo", telefono: "6440000000", correo
 
 /* --------------------------------- API ------------------------------------ */
 export const Api = {
+  trabajosResueltos: {
+    list: (pagina = 1, tamano = 12) => http(`/trabajos-resueltos?pagina=${pagina}&tamano=${tamano}`),
+  },
   auth: {
     login: (correo, password) =>
       CONFIG.MOCK
@@ -232,6 +235,7 @@ export const Api = {
         : http("/clientes/" + id, { method: "DELETE" }),
   },
   resumenes: {
+    publicarResena: (id, data) => http(`/resumenes/${id}/resena-publica`, { method: "PUT", body: JSON.stringify(data) }),
     list: () => (CONFIG.MOCK ? delay(clone(db.resumenes)) : http("/resumenes")),
     get: (id) =>
       CONFIG.MOCK

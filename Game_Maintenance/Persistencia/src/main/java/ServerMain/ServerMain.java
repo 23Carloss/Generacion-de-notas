@@ -48,10 +48,12 @@ public class ServerMain {
         FilterHolder authFilterHolder = new FilterHolder(new AuthFilter());
         contexto.addFilter(authFilterHolder, "/api/clientes/*", EnumSet.of(DispatcherType.REQUEST));
         contexto.addFilter(authFilterHolder, "/api/resumenes/*", EnumSet.of(DispatcherType.REQUEST));
+        contexto.addFilter(authFilterHolder, "/api/trabajos-resueltos/*", EnumSet.of(DispatcherType.REQUEST));
  
         contexto.addServlet(new ServletHolder(new AuthServlet()), "/api/auth/*");
         contexto.addServlet(new ServletHolder(new ClienteServlet()), "/api/clientes/*");
         contexto.addServlet(new ServletHolder(new ResumenServlet()), "/api/resumenes/*");
+        contexto.addServlet(new ServletHolder(new Servlets.TrabajosResueltosServlet()), "/api/trabajos-resueltos/*");
  
         Runtime.getRuntime().addShutdownHook(new Thread(ManejadorConexiones::cerrar));
  

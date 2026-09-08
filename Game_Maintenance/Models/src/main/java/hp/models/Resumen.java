@@ -62,6 +62,13 @@ public class Resumen implements Serializable {
     
     @Column(name= "resenaComentario")
     private String resenaComentario;
+
+    // Only an administrator-reviewed excerpt may leave the private ticket API.
+    @Column(name="resenaPublica", length=600)
+    private String resenaPublica;
+
+    public String getResenaPublica() { return resenaPublica; }
+    public void setResenaPublica(String texto) { this.resenaPublica = texto; }
    
     @Column(name="calificacion")
     private Integer calificacion;

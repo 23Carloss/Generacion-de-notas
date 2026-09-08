@@ -97,6 +97,7 @@ public class Mappers {
         dto.setCliente(toDTO(r.getCliente()));
         dto.setComentariosCliente(r.getComentariosCliente());
         dto.setDescripcionProblema(r.getDescripcionProblema());
+        dto.setResenaPublica(r.getResenaPublica());
         dto.setEstado(estadoAFrontend(r.getEstado()));
         dto.setFechaCreacion(r.getFechaCreacion() != null ? r.getFechaCreacion().format(FECHA_FORMATO) : null);
         dto.setListaDispositivos(

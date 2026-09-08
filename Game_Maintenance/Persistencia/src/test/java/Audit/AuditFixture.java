@@ -46,9 +46,11 @@ public final class AuditFixture implements AutoCloseable {
         FilterHolder auth = new FilterHolder(new AuthFilter());
         ctx.addFilter(auth, "/api/clientes/*", EnumSet.of(DispatcherType.REQUEST));
         ctx.addFilter(auth, "/api/resumenes/*", EnumSet.of(DispatcherType.REQUEST));
+        ctx.addFilter(auth, "/api/trabajos-resueltos/*", EnumSet.of(DispatcherType.REQUEST));
         ctx.addServlet(new ServletHolder(new AuthServlet()), "/api/auth/*");
         ctx.addServlet(new ServletHolder(new ClienteServlet()), "/api/clientes/*");
         ctx.addServlet(new ServletHolder(new ResumenServlet()), "/api/resumenes/*");
+        ctx.addServlet(new ServletHolder(new TrabajosResueltosServlet()), "/api/trabajos-resueltos/*");
     }
 
     private Cliente seed(String name, String email, Cliente.ROL role) throws Exception {
