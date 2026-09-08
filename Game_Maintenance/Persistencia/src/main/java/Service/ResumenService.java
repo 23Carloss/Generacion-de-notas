@@ -48,7 +48,8 @@ public class ResumenService extends HttpServlet {
         } catch (PersistenciaException e) {
             throw e;
         } catch (Exception e) {
-            throw new PersistenciaException("Error al listar los tickets: " + e.getMessage());
+            Util.DatabaseDiagnostics.log("listar tickets", e);
+            throw new PersistenciaException("Error al listar los tickets.");
         } finally {
             em.close();
         }
@@ -70,7 +71,8 @@ public class ResumenService extends HttpServlet {
         } catch (PersistenciaException e) {
             throw e;
         } catch (Exception e) {
-            throw new PersistenciaException("Error al listar los tickets del cliente: " + e.getMessage());
+            Util.DatabaseDiagnostics.log("listar tickets propios", e);
+            throw new PersistenciaException("Error al listar los tickets del cliente.");
         } finally {
             em.close();
         }

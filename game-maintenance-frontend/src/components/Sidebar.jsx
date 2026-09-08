@@ -11,9 +11,8 @@ const NAV_ADMIN = [
 ];
 
 const NAV_USUARIO = [
-  { key: "dashboard", label: "Panel" },
-  { key: "tickets", label: "Mis tickets" },
   { key: "resueltos", label: "Trabajos resueltos" },
+  { key: "tickets", label: "Mis tickets" },
   { key: "perfil", label: "Mi perfil" },
 ];
 

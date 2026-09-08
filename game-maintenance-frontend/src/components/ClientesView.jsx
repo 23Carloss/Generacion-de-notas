@@ -5,7 +5,7 @@ import PhoneField from "./PhoneField";
 import { joinPhone, splitPhone } from "../phone";
 import { LIMITS } from "../formValidation";
 
-export default function ClientesView({ clientes, resumenes, onCreate, onUpdate, onRemove, onOpenTicket }) {
+export default function ClientesView({ clientes, resumenes, ticketsError, onRetry, onCreate, onUpdate, onRemove, onOpenTicket }) {
   const [query, setQuery] = useState("");
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -78,7 +78,7 @@ export default function ClientesView({ clientes, resumenes, onCreate, onUpdate, 
                   <td>{c.nombre}</td>
                   <td>{c.telefono}</td>
                   <td>{ROLES[c.rol] || "—"}</td>
-                  <td>{n}</td>
+                  <td>{ticketsError ? "No disponible" : n}</td>
                   <td>
                     <button
                       className="btn btn-ghost btn-small"
@@ -104,6 +104,11 @@ export default function ClientesView({ clientes, resumenes, onCreate, onUpdate, 
           subtitle="Registra tu primer cliente para comenzar a crear tickets."
         />
       )}
+
+      {ticketsError && <div className="card" role="alert">
+        <p>Los clientes se cargaron, pero sus tickets no están disponibles temporalmente.</p>
+        <button className="btn btn-ghost" onClick={onRetry}>Reintentar carga</button>
+      </div>}
 
       {clienteSeleccionado && (
         <section className="card client-detail" aria-live="polite">
@@ -133,8 +138,8 @@ export default function ClientesView({ clientes, resumenes, onCreate, onUpdate, 
             </div>
           </div>
           <div className="field">
-            <label>Tickets del cliente ({ticketsCliente.length})</label>
-            {ticketsCliente.length ? (
+            <label>Tickets del cliente{ticketsError ? "" : ` (${ticketsCliente.length})`}</label>
+            {ticketsError ? <p className="hint">No se pudo consultar el historial. Esto no significa que no tenga tickets.</p> : ticketsCliente.length ? (
               <div className="client-ticket-list">
                 {ticketsCliente.map((ticket) => (
                   <button

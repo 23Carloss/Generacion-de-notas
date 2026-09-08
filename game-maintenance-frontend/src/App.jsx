@@ -28,6 +28,7 @@ export default function App() {
   const [clientes, setClientes] = useState([]);
   const [resumenes, setResumenes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadErrors, setLoadErrors] = useState({});
 
   // sesionActiva revisa tanto el usuario guardado como que exista un token:
   // si el token se limpió (por un 401) pero el usuario seguía en el estado
@@ -38,16 +39,18 @@ export default function App() {
   const refresh = useCallback(async () => {
     if (!sesionActiva) return;
     setLoading(true);
+    setLoadErrors({});
     try {
       const resumenesPromise = Api.resumenes.list();
       const clientesPromise = esAdmin ? Api.clientes.list() : Promise.resolve([]);
-      const [r, c] = await Promise.all([resumenesPromise, clientesPromise]);
-      setResumenes(r);
-      if (esAdmin) setClientes(c);
-    } catch {
-      // Si fue un 401, el listener de "gm:unauthorized" ya se encarga de
-      // cerrar la sesión y regresar al login; cualquier otro error se
-      // ignora aquí por ahora (no hay una UI de error global todavía).
+      const [r, c] = await Promise.allSettled([resumenesPromise, clientesPromise]);
+      if (!getToken()) return;
+      const errors = {};
+      if (r.status === "fulfilled") setResumenes(r.value);
+      else errors.tickets = "No se pudieron cargar los tickets. Intenta nuevamente; si continúa, contacta al administrador.";
+      if (c.status === "fulfilled") { if (esAdmin) setClientes(c.value); }
+      else errors.clientes = "No se pudieron cargar los clientes. Intenta nuevamente; si continúa, contacta al administrador.";
+      setLoadErrors(errors);
     } finally {
       setLoading(false);
     }
@@ -84,7 +87,7 @@ export default function App() {
 
   function guardarSesion(cliente, irADashboard = true) {
     setUsuario(cliente);
-    if (irADashboard) navigate("dashboard");
+    if (irADashboard) navigate(cliente.rol === "ADMINISTRADOR" ? "dashboard" : "resueltos");
   }
 
   async function cerrarSesion() {
@@ -176,9 +179,12 @@ export default function App() {
   // "Clientes" y "Nuevo ticket" no existen para un USUARIO común, aunque
   // teclee el hash a mano. El backend igual las bloquea (ver AuthFilter /
   // servlets), esto es solo para no mostrarle una pantalla rota.
-  const rutaBloqueada = !esAdmin && (route === "clientes" || route === "nuevo");
-  const rutaEfectiva = rutaBloqueada ? "dashboard" : route;
+  const rutaBloqueada = !esAdmin && ["dashboard", "clientes", "nuevo"].includes(route);
+  const rutaEfectiva = rutaBloqueada ? "resueltos" : route;
   const currentTicket = resumenes.find((r) => r.id === ticketId);
+  const loadError = ["clientes", "nuevo"].includes(rutaEfectiva)
+    ? loadErrors.clientes
+    : loadErrors.tickets || (rutaEfectiva === "ticket" && esAdmin ? loadErrors.clientes : "");
 
   return (
     <div id="app">
@@ -190,8 +196,17 @@ export default function App() {
         onLogout={cerrarSesion}
       />
       <main className="main" id="contenido" tabIndex={-1}>
-        {loading ? (
+        {rutaEfectiva === "resueltos" ? (
+          <TrabajosResueltosView />
+        ) : rutaEfectiva === "perfil" ? (
+          <PerfilView usuario={usuario} onUpdate={handleUpdatePerfil} />
+        ) : loading ? (
           <p className="hint">Cargando…</p>
+        ) : loadError ? (
+          <section className="card" aria-label="Error al cargar datos">
+            <p role="alert">{loadError}</p>
+            <button className="btn btn-primary" onClick={refresh}>Reintentar carga</button>
+          </section>
         ) : rutaEfectiva === "dashboard" ? (
           <DashboardView
             resumenes={resumenes}
@@ -200,8 +215,6 @@ export default function App() {
             esAdmin={esAdmin}
             usuario={usuario}
           />
-        ) : rutaEfectiva === "resueltos" ? (
-          <TrabajosResueltosView />
         ) : rutaEfectiva === "tickets" ? (
           <TicketsView resumenes={resumenes} onNavigate={navigate} onOpenTicket={openTicket} esAdmin={esAdmin} />
         ) : rutaEfectiva === "ticket" ? (
@@ -222,6 +235,8 @@ export default function App() {
           <ClientesView
             clientes={clientes}
             resumenes={resumenes}
+            ticketsError={loadErrors.tickets}
+            onRetry={refresh}
             onCreate={handleCreateCliente}
             onUpdate={handleUpdateCliente}
             onRemove={handleRemoveCliente}
@@ -233,8 +248,6 @@ export default function App() {
             onCreateCliente={handleCreateCliente}
             onCreateTicket={handleCreateTicket}
           />
-        ) : rutaEfectiva === "perfil" ? (
-          <PerfilView usuario={usuario} onUpdate={handleUpdatePerfil} />
         ) : null}
       </main>
     </div>

@@ -1,9 +1,9 @@
 import TicketCard from "./TicketCard";
 import EmptyState from "./EmptyState";
-import TrabajosResueltosView from "./TrabajosResueltosView";
 import { money, totalTicket } from "../utils";
 
 export default function DashboardView({ resumenes, onNavigate, onOpenTicket, esAdmin, usuario }) {
+  if (!esAdmin) return null;
   const total = resumenes.length;
   const activos = resumenes.filter((r) => r.estado !== "Entregado").length;
   const listos = resumenes.filter((r) => r.estado === "Listo para entrega").length;
@@ -18,9 +18,7 @@ export default function DashboardView({ resumenes, onNavigate, onOpenTicket, esA
           <p className="eyebrow">Vista general</p>
           <h1>Panel de servicio</h1>
           <p>
-            {esAdmin
-              ? "Estado actual del taller: tickets activos, listos para entrega e ingresos estimados."
-              : "Aquí puedes ver el estado de tus tickets de reparación."}
+            Estado actual del taller: tickets activos, listos para entrega e ingresos estimados.
           </p>
         </div>
         {esAdmin && (
@@ -31,15 +29,11 @@ export default function DashboardView({ resumenes, onNavigate, onOpenTicket, esA
       </div>
 
       <div className="stat-grid">
-        {/* El plan pide que el usuario común no vea el total (conteo) de
-            sus tickets; el admin sí lo conserva. */}
-        {esAdmin && <StatCard num={total} lbl="Tickets totales" />}
+        <StatCard num={total} lbl="Tickets totales" />
         <StatCard num={activos} lbl="En proceso" accent />
         <StatCard num={listos} lbl="Listos para entrega" />
-        <StatCard num={money(ingresos)} lbl={esAdmin ? "Ingresos estimados" : "Total de mis tickets"} />
+        <StatCard num={money(ingresos)} lbl="Ingresos estimados" />
       </div>
-
-      {!esAdmin && <TrabajosResueltosView compact onNavigate={onNavigate} />}
 
       <div className="view-header" style={{ marginBottom: "1rem" }}>
         <h1 style={{ fontSize: "1.05rem" }}>Tickets recientes</h1>

@@ -15,7 +15,7 @@
 
    Si ejecutas el backend contra MySQL local, usa `Deployment/portfolio-mysql.sql`: revisa primero si existe la columna y agrégala una sola vez. No uses `ADD COLUMN IF NOT EXISTS` en MySQL.
 3. Mantén `DB_SCHEMA_ACTION=none`. Despliega el backend después de añadir la columna y luego el frontend. Conserva `VITE_API_BASE` apuntando a la API HTTPS y el origen HTTPS del frontend en `APP_ALLOWED_ORIGINS`; las nuevas rutas usan los mismos servicios.
-4. Inicia sesión y abre **Menú → Trabajos resueltos**. Un usuario normal también ve una muestra en su panel inicial. Si no hay tickets en estado **Entregado**, verá un estado vacío, no ejemplos ficticios.
+4. Inicia sesión y abre **Menú → Trabajos resueltos**. El rol Usuario entra directamente a esta galería; el panel general y sus estadísticas son exclusivos del administrador. Si no hay tickets en estado **Entregado**, verá un estado vacío, no ejemplos ficticios.
 
 No se ha ejecutado esta migración sobre tu base real ni se ha publicado esta versión en Render.
 

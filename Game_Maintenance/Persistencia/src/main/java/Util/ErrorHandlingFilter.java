@@ -28,6 +28,7 @@ public class ErrorHandlingFilter implements Filter {
         } catch (JsonProcessingException e) {
             writeError(resp, HttpServletResponse.SC_BAD_REQUEST, "JSON inválido.");
         } catch (RuntimeException | ServletException e) {
+            DatabaseDiagnostics.log("petición API", e);
             writeError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Ocurrió un error interno.");
         }
     }

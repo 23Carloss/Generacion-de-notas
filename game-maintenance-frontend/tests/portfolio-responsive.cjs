@@ -44,7 +44,8 @@ async function auth(email) { return api('/auth/login', null, 'POST', { correo: e
         await page.locator('input[type=password]').fill('Audit-only-123!');
         await page.getByRole('button', { name: 'Entrar', exact: true }).click();
         await page.getByRole('button', { name: 'Abrir menú', exact: true }).waitFor();
-        await page.locator('.dashboard-welcome').waitFor();
+        if (email === 'audit-admin@example.test') await page.locator('.dashboard-welcome').waitFor();
+        else await page.getByRole('heading', { name: 'Trabajos resueltos', exact: true }).waitFor();
       }
       async function navigate(name) {
         await page.getByRole('button', { name: 'Abrir menú', exact: true }).click();
@@ -80,12 +81,19 @@ async function auth(email) { return api('/auth/login', null, 'POST', { correo: e
         await navigate('Nuevo ticket'); await page.getByPlaceholder('Modelo (ej. PS4 Slim)').waitFor(); await fits(`ticket form ${width}`);
       }
       await logout(); await login('audit-other@example.test');
-      await page.locator('.portfolio-compact .portfolio-card').first().waitFor();
+      await page.locator('.portfolio .portfolio-card').first().waitFor();
       await page.getByText('“' + excerpt + '”', { exact: true }).waitFor();
-      assert.equal(await page.locator('.portfolio-compact').getByText(/SECRETO|audit-user|6441234567/).count(), 0);
+      assert.equal(await page.locator('.portfolio').getByText(/SECRETO|audit-user|6441234567/).count(), 0);
+      assert.equal(await page.locator('.stat-grid').count(), 0);
+      assert.equal(await page.getByRole('button', { name: 'Panel', exact: true, includeHidden: true }).count(), 0);
       for (const width of [320, 390, 768, 1280, 1600]) {
         await page.setViewportSize({ width, height: 844 });
-        await navigate('Panel'); await page.locator('.portfolio-compact .portfolio-card').first().waitFor(); await fits(`dashboard ${width}`);
+        await navigate('Mis tickets');
+        await page.evaluate(() => { location.hash = '#dashboard'; });
+        await page.locator('.portfolio .portfolio-card').first().waitFor();
+        assert.equal(await page.locator('.stat-grid').count(), 0);
+        assert.equal(await page.getByRole('heading', { name: 'Panel de servicio', exact: true }).count(), 0);
+        await fits(`restricted dashboard ${width}`);
         await navigate('Trabajos resueltos'); await page.locator('.portfolio-card').first().waitFor(); await fits(`portfolio ${width}`);
         await page.getByRole('button', { name: 'Abrir menú', exact: true }).click();
         const drawer = page.getByRole('dialog', { name: 'Menú principal' });
@@ -133,6 +141,20 @@ async function auth(email) { return api('/auth/login', null, 'POST', { correo: e
       await page.getByLabel('Fragmento anónimo para mostrar').waitFor();
       const g = await api('/trabajos-resueltos', owner.token);
       assert.equal(g.trabajos[0].resena, null);
+      await logout();
+      await page.route('**/api/resumenes', route => route.fulfill({ status: 500, contentType: 'application/json', body: '{"error":"Ocurrió un error interno."}' }), { times: 1 });
+      await page.getByPlaceholder('tu@correo.com').fill('audit-admin@example.test');
+      await page.locator('input[type=password]').fill('Audit-only-123!');
+      await page.getByRole('button', { name: 'Entrar', exact: true }).click();
+      await page.getByRole('region', { name: 'Error al cargar datos' }).waitFor();
+      assert.equal(await page.locator('.stat-grid').count(), 0, 'A failed load must not look like zero tickets');
+      await navigate('Clientes');
+      await page.getByRole('region', { name: 'Lista de clientes' }).waitFor();
+      await page.getByText('Los clientes se cargaron, pero sus tickets no están disponibles temporalmente.').waitFor();
+      await navigate('Trabajos resueltos'); await page.locator('.portfolio-card').first().waitFor();
+      await navigate('Panel');
+      await page.getByRole('button', { name: 'Reintentar carga', exact: true }).click();
+      await page.locator('.stat-grid').waitFor();
       console.log(`PASS ${channel}: real API publication/unpublication, private response allowlist, pagination, error/retry/empty states, left drawer/focus/Escape/backdrop, responsive 320–1600px and landscape, no JS errors.`);
     } finally { await browser.close(); }
   }

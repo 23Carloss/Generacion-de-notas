@@ -55,6 +55,30 @@ class PortfolioApiTest {
     }
     static Set<String> fields(JsonNode n) { Set<String> keys = new TreeSet<>(); n.fieldNames().forEachRemaining(keys::add); return keys; }
 
+    @Test void missingPortfolioColumnBreaksBothReadsAndAdditiveMigrationRestoresExistingTickets() throws Exception {
+        long id = create(); state(id, "Entregado");
+        // Only the disposable AuditPU database; never reads DB_URL or touches real records.
+        try (var connection = java.sql.DriverManager.getConnection("jdbc:h2:mem:gm_audit;MODE=LEGACY", "sa", "");
+                var sql = connection.createStatement()) {
+            sql.execute("ALTER TABLE Resumen DROP COLUMN resenaPublica");
+            try {
+                assertEquals(500, send("GET", "/resumenes", app.adminToken, null).status);
+                assertEquals(500, send("GET", "/trabajos-resueltos", app.userToken, null).status);
+            } finally {
+                // The shipped PostgreSQL migration is also accepted by H2 for this regression check.
+                String migration = java.nio.file.Files.readString(java.nio.file.Path.of("../Deployment/portfolio-postgresql.sql"));
+                for (int run = 0; run < 2; run++) {
+                    for (String statement : migration.split(";")) if (!statement.isBlank()) sql.execute(statement);
+                }
+            }
+            assertEquals(200, send("GET", "/resumenes", app.adminToken, null).status);
+            assertEquals(200, send("GET", "/trabajos-resueltos", app.userToken, null).status);
+            Reply restored = send("GET", "/resumenes/" + id, app.adminToken, null);
+            assertEquals(200, restored.status);
+            assertEquals("SECRETO direccion personal", restored.json().path("descripcionProblema").asText());
+        }
+    }
+
     @Test void authenticationAndPrivateTicketPermissionsRemainSeparate() throws Exception {
         assertEquals(401, send("GET", "/trabajos-resueltos", null, null).status);
         assertEquals(401, send("GET", "/trabajos-resueltos", "invalid", null).status);
