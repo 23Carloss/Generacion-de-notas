@@ -70,6 +70,13 @@ public final class AppConfig {
         return Boolean.parseBoolean(value("APP_ENABLE_HSTS", "false"));
     }
 
+    public static boolean portfolioSchemaRepairEnabled() {
+        String configured = value("APP_REPAIR_PORTFOLIO_SCHEMA", "false");
+        if (!Set.of("true", "false").contains(configured))
+            throw new IllegalStateException("APP_REPAIR_PORTFOLIO_SCHEMA debe ser true o false.");
+        return Boolean.parseBoolean(configured);
+    }
+
     private static String driverFor(String url) {
         if (url.startsWith("jdbc:mysql:")) {
             return "com.mysql.cj.jdbc.Driver";

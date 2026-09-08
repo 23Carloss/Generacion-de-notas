@@ -27,7 +27,9 @@ public class ManejadorConexiones {
         if(emFactory == null){
             synchronized (ManejadorConexiones.class) {
                 if (emFactory == null) {
-                    emFactory = Persistence.createEntityManagerFactory("TicketsPU", AppConfig.databaseProperties());
+                    var properties = AppConfig.databaseProperties();
+                    Migration.PortfolioSchemaRepair.runIfEnabled(properties);
+                    emFactory = Persistence.createEntityManagerFactory("TicketsPU", properties);
                 }
             }
         }
