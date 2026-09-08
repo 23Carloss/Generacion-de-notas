@@ -62,6 +62,11 @@ async function auth(email) { return api('/auth/login', null, 'POST', { correo: e
       }
 
       await page.goto(SITE); await login('audit-admin@example.test');
+      await navigate('Clientes');
+      const brand = page.getByRole('link', { name: 'Game Maintenance: ir al panel general', exact: true });
+      assert.equal(await brand.getAttribute('href'), '#dashboard');
+      await brand.click();
+      await page.getByRole('heading', { name: 'Panel de servicio', exact: true }).waitFor();
       await page.evaluate(id => { location.hash = '#ticket/' + id; }, reviewedId);
       await page.getByText(original, { exact: true }).waitFor();
       await page.getByLabel('Fragmento anónimo para mostrar').fill(excerpt);
@@ -81,6 +86,12 @@ async function auth(email) { return api('/auth/login', null, 'POST', { correo: e
         await navigate('Nuevo ticket'); await page.getByPlaceholder('Modelo (ej. PS4 Slim)').waitFor(); await fits(`ticket form ${width}`);
       }
       await logout(); await login('audit-other@example.test');
+      await navigate('Mis tickets');
+      const userBrand = page.getByRole('link', { name: 'Game Maintenance: ir a trabajos resueltos', exact: true });
+      assert.equal(await userBrand.getAttribute('href'), '#resueltos');
+      await userBrand.focus();
+      await page.keyboard.press('Enter');
+      await page.getByRole('heading', { name: 'Trabajos resueltos', exact: true }).waitFor();
       await page.locator('.portfolio .portfolio-card').first().waitFor();
       await page.getByText('“' + excerpt + '”', { exact: true }).waitFor();
       assert.equal(await page.locator('.portfolio').getByText(/SECRETO|audit-user|6441234567/).count(), 0);
