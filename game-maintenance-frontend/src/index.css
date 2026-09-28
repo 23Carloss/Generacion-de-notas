@@ -347,6 +347,8 @@ td { padding: .7rem .5rem; border-bottom: 1px solid var(--panel-border); font-si
 .client-ticket { display: flex; justify-content: space-between; gap: .7rem; width: 100%; color: var(--paper); background: rgba(255,255,255,.035); border: 1px solid var(--panel-border); border-radius: 7px; padding: .6rem .7rem; cursor: pointer; text-align: left; }
 .client-ticket:hover { border-color: var(--copper); background: rgba(201,123,61,.08); }
 .client-ticket span:last-child { color: var(--muted); font-size: .82rem; }
+.delete-client-card { margin-bottom: 1.4rem; border-color: rgba(214,85,60,.5); }
+.delete-client-card h2 { margin-top: 0; font-family: var(--font-display); font-size: 1.05rem; }
 
 /* ---------- centro de notificaciones ---------- */
 .notification-toolbar { display: inline-flex; gap: .25rem; margin-bottom: 1.2rem; padding: .25rem; border: 1px solid var(--panel-border); border-radius: 9px; background: rgba(255,255,255,.025); }

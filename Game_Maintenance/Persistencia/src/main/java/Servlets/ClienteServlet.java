@@ -5,7 +5,10 @@ import DTOs.ClienteDTO;
 import Exceptions.PersistenciaException;
 import Util.JsonUtil;
 import Service.Mappers;
+import Service.LoginRateLimiter;
+import Service.TokenService;
 import hp.models.Cliente;
+import Util.PasswordUtil;
 import Util.ValidationUtil;
 
 import java.io.IOException;
@@ -22,7 +25,7 @@ import javax.servlet.http.HttpServletResponse;
  *   GET    /api/clientes         -> lista de clientes
  *   POST   /api/clientes         -> crea cliente (body: {nombre, telefono})
  *   PUT    /api/clientes/{id}    -> edita contacto (administrador o propio perfil)
- *   DELETE /api/clientes/{id}    -> elimina cliente
+ *   DELETE /api/clientes/{id}    -> elimina cliente; si es administrador requiere su contraseña
  */
 public class ClienteServlet extends HttpServlet {
 
@@ -153,12 +156,50 @@ public class ClienteServlet extends HttpServlet {
             return;
         }
         try {
+            Cliente cliente = clienteDAO.buscarPorId(id);
+            if (cliente == null) {
+                enviarError(resp, 404, "cliente no encontrado");
+                return;
+            }
+
+            if (cliente.getRol() == Cliente.ROL.ADMINISTRADOR) {
+                String limiterKey = "delete-admin|" + req.getRemoteAddr() + "|" + id;
+                long retryAfter = LoginRateLimiter.retryAfterSeconds(limiterKey);
+                if (retryAfter > 0) {
+                    resp.setHeader("Retry-After", Long.toString(retryAfter));
+                    enviarError(resp, 429, "Demasiados intentos. Intenta de nuevo más tarde.");
+                    return;
+                }
+                String password = passwordEliminacion(req);
+                boolean passwordValido = PasswordUtil.verificar(password, cliente.getPasswordHash())
+                        || PasswordUtil.verificarLegado(password, cliente.getPasswordSalt(), cliente.getPasswordHash());
+                if (!passwordValido) {
+                    long bloqueo = LoginRateLimiter.registerFailure(limiterKey);
+                    if (bloqueo > 0) {
+                        resp.setHeader("Retry-After", Long.toString(bloqueo));
+                        enviarError(resp, 429, "Demasiados intentos. Intenta de nuevo más tarde.");
+                    } else {
+                        enviarError(resp, 403, "La contraseña del administrador a eliminar es incorrecta.");
+                    }
+                    return;
+                }
+                LoginRateLimiter.registerSuccess(limiterKey);
+            }
+
             clienteDAO.eliminar(id);
+            TokenService.invalidarCliente(id);
             resp.setStatus(204);
         } catch (PersistenciaException e) {
             // lo más común: el cliente tiene tickets asociados (FK)
             enviarError(resp, 409, "No se puede eliminar el cliente porque tiene datos relacionados.");
         }
+    }
+
+    private String passwordEliminacion(HttpServletRequest req) throws IOException {
+        byte[] contenido = req.getInputStream().readAllBytes();
+        if (contenido.length == 0) return null;
+        Map<?, ?> body = JsonUtil.MAPPER.readValue(contenido, Map.class);
+        return body == null ? null : texto(body.get("password"));
     }
  
     private String texto(Object valor) {

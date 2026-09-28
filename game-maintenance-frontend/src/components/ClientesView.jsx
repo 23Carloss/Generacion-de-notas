@@ -9,6 +9,7 @@ export default function ClientesView({ clientes, resumenes, ticketsError, onRetr
   const [query, setQuery] = useState("");
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [deleting, setDeleting] = useState(null);
   const [clienteSeleccionadoId, setClienteSeleccionadoId] = useState(null);
 
   useEffect(() => {
@@ -37,7 +38,7 @@ export default function ClientesView({ clientes, resumenes, ticketsError, onRetr
           <h1>Clientes</h1>
           <p>Datos de contacto de quienes han dejado equipo en el taller.</p>
         </div>
-        <button className="btn btn-primary" onClick={() => { setEditing(null); setAdding((v) => !v); }}>
+        <button className="btn btn-primary" onClick={() => { setEditing(null); setDeleting(null); setAdding((v) => !v); }}>
           + Nuevo cliente
         </button>
       </div>
@@ -51,6 +52,17 @@ export default function ClientesView({ clientes, resumenes, ticketsError, onRetr
             setAdding(false);
             setEditing(null);
           }} />
+      )}
+
+      {deleting && (
+        <EliminarClienteForm
+          cliente={deleting}
+          onCancel={() => setDeleting(null)}
+          onConfirm={async (password) => {
+            await onRemove(deleting.id, password);
+            setDeleting(null);
+          }}
+        />
       )}
 
       <div className="toolbar">
@@ -92,10 +104,10 @@ export default function ClientesView({ clientes, resumenes, ticketsError, onRetr
                     >
                       Ver información
                     </button>{" "}
-                    <button className="btn btn-ghost btn-small" onClick={() => { setAdding(false); setEditing(c); }}>
+                    <button className="btn btn-ghost btn-small" onClick={() => { setAdding(false); setDeleting(null); setEditing(c); }}>
                       Editar
                     </button>{" "}
-                    <button className="btn btn-ghost btn-small" onClick={() => onRemove(c.id)}>
+                    <button className="btn btn-danger btn-small" onClick={() => { setAdding(false); setEditing(null); setDeleting(c); }}>
                       Eliminar
                     </button>
                   </td>
@@ -166,6 +178,50 @@ export default function ClientesView({ clientes, resumenes, ticketsError, onRetr
         </section>
       )}
     </>
+  );
+}
+
+function EliminarClienteForm({ cliente, onConfirm, onCancel }) {
+  const esAdmin = cliente.rol === "ADMINISTRADOR";
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  async function submit(e) {
+    e.preventDefault();
+    setError("");
+    if (esAdmin && !password) {
+      setError("Escribe la contraseña del administrador que deseas eliminar.");
+      return;
+    }
+    setDeleting(true);
+    try {
+      await onConfirm(esAdmin ? password : undefined);
+    } catch (err) {
+      setError(err?.message || "No se pudo eliminar la cuenta.");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  return (
+    <form className="card delete-client-card" onSubmit={submit}>
+      <p className="eyebrow">Confirmación requerida</p>
+      <h2>Eliminar {esAdmin ? "administrador" : "cliente"}</h2>
+      <p>Vas a eliminar permanentemente la cuenta de <strong>{cliente.nombre}</strong>.</p>
+      {esAdmin && <div className="field">
+        <label htmlFor={`delete-password-${cliente.id}`}>Contraseña de {cliente.nombre}</label>
+        <input id={`delete-password-${cliente.id}`} className="input" type="password"
+          autoComplete="current-password" value={password} disabled={deleting}
+          onChange={(e) => setPassword(e.target.value)} autoFocus />
+        <span className="hint">Por seguridad debe ser la contraseña de la cuenta administradora que será eliminada.</span>
+      </div>}
+      {error && <div className="error-text" role="alert">{error}</div>}
+      <div className="toolbar">
+        <button className="btn btn-danger" type="submit" disabled={deleting}>{deleting ? "Eliminando…" : "Confirmar eliminación"}</button>
+        <button className="btn btn-ghost" type="button" disabled={deleting} onClick={onCancel}>Cancelar</button>
+      </div>
+    </form>
   );
 }
 

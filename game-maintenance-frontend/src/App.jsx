@@ -144,8 +144,17 @@ export default function App() {
     setClientes((prev) => [...prev, created]);
     return created;
   }
-  async function handleRemoveCliente(id) {
-    await Api.clientes.remove(id);
+  async function handleRemoveCliente(id, password) {
+    await Api.clientes.remove(id, password);
+    if (usuario.id === id) {
+      try { await Api.auth.logout(); } catch { /* la sesión ya fue invalidada por el servidor */ }
+      setUsuario(null);
+      setResumenes([]);
+      setClientes([]);
+      setUnreadCount(0);
+      navigate("login");
+      return;
+    }
     await refresh();
   }
   async function handleUpdateCliente(id, data) {

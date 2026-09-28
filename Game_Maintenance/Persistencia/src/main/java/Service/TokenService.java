@@ -77,6 +77,13 @@ public class TokenService {
         }
     }
 
+    /** Cierra todas las sesiones activas de una cuenta eliminada. */
+    public static void invalidarCliente(Long clienteId) {
+        if (clienteId != null) {
+            SESIONES.entrySet().removeIf(entry -> clienteId.equals(entry.getValue().clienteId));
+        }
+    }
+
     private static Instant siguienteExpiracion() {
         return Instant.now().plusSeconds(Util.AppConfig.sessionIdleTimeoutSeconds());
     }

@@ -11,7 +11,7 @@
      GET    /clientes                (solo ADMINISTRADOR)
      POST   /clientes                body: ClienteDTO                (solo ADMINISTRADOR)
      PUT    /clientes/{id}           body: {nombre, telefono, correo}(administrador o propio perfil)
-     DELETE /clientes/{id}                                            (solo ADMINISTRADOR)
+     DELETE /clientes/{id}           body: {password}?; obligatorio al eliminar un ADMINISTRADOR
      GET    /resumenes               ADMINISTRADOR: todos · USUARIO: solo los suyos
      GET    /resumenes/{id}
      POST   /resumenes               body: ResumenDTO                (solo ADMINISTRADOR)
@@ -251,7 +251,7 @@ export const Api = {
             })()
           )
         : http("/clientes/" + id, { method: "PUT", body: JSON.stringify(data) }),
-    remove: (id) =>
+    remove: (id, password) =>
       CONFIG.MOCK
         ? delay(
             (() => {
@@ -259,7 +259,10 @@ export const Api = {
               return true;
             })()
           )
-        : http("/clientes/" + id, { method: "DELETE" }),
+        : http("/clientes/" + id, {
+            method: "DELETE",
+            body: password ? JSON.stringify({ password }) : undefined,
+          }),
   },
   resumenes: {
     publicarResena: (id, data) => http(`/resumenes/${id}/resena-publica`, { method: "PUT", body: JSON.stringify(data) }),

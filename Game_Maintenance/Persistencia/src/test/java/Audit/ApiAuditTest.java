@@ -2,6 +2,7 @@ package Audit;
 
 import DAOs.ClienteDAO;
 import Util.JsonUtil;
+import Util.PasswordUtil;
 import hp.models.Cliente;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -189,15 +190,26 @@ class ApiAuditTest {
         for (int i = 0; i < 8; i++) assertEquals(401, send("POST", "/auth/login", null, Map.of("correo", "spray" + i + "@example.test", "password", "wrong")).status);
         System.out.println("SEC-04 CONFIRMED: per-account limit returns 429; rotating accounts remain 401 from same requester.");
     }
-    @Test void characterizeDeletedAccountSession() throws Exception {
+    @Test void administratorDeletionRequiresTargetPasswordAndRevokesSessions() throws Exception {
         Cliente c = new Cliente(); c.setNombre("Temporary admin"); c.setTelefono("6441112233");
-        c.setRol(Cliente.ROL.ADMINISTRADOR); new ClienteDAO().insertar(c);
+        c.setRol(Cliente.ROL.ADMINISTRADOR); c.setPasswordHash(PasswordUtil.hash("Target-admin-123!"));
+        new ClienteDAO().insertar(c);
         String token = Service.TokenService.emitirToken(c);
         try {
-            assertEquals(204, send("DELETE", "/clientes/" + c.getId(), app.adminToken, null).status);
-            assertEquals(200, send("GET", "/clientes", token, null).status);
-            System.out.println("SEC-05 CONFIRMED: deleted administrator's existing token still reads client directory (200).");
+            assertEquals(403, send("DELETE", "/clientes/" + c.getId(), app.adminToken, null).status);
+            assertEquals(403, send("DELETE", "/clientes/" + c.getId(), app.adminToken,
+                    Map.of("password", "incorrecta")).status);
+            assertNotNull(new ClienteDAO().buscarPorId(c.getId()));
+            assertEquals(204, send("DELETE", "/clientes/" + c.getId(), app.adminToken,
+                    Map.of("password", "Target-admin-123!")).status);
+            assertEquals(401, send("GET", "/clientes", token, null).status);
         } finally { Service.TokenService.invalidar(token); }
+    }
+    @Test void ordinaryClientDeletionDoesNotRequestAdministratorPassword() throws Exception {
+        Cliente c = new Cliente(); c.setNombre("Temporary client"); c.setTelefono("6441112244");
+        c.setRol(Cliente.ROL.USUARIO); new ClienteDAO().insertar(c);
+        assertEquals(204, send("DELETE", "/clientes/" + c.getId(), app.adminToken, null).status);
+        assertNull(new ClienteDAO().buscarPorId(c.getId()));
     }
     @Test void descriptionLimitAlreadySupportedByApi() throws Exception {
         ObjectNode d = ticket(); d.put("descripcionProblema", "x".repeat(2000));
