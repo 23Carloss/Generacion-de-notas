@@ -285,8 +285,13 @@ public class ResumenService extends HttpServlet {
                 em.getTransaction().rollback();
                 return null;
             }
-            resumen.setEstado(Mappers.estadoDesdeFrontend(estadoFrontend));
+            Resumen.ESTADO estadoAnterior = resumen.getEstado();
+            Resumen.ESTADO estadoNuevo = Mappers.estadoDesdeFrontend(estadoFrontend);
+            resumen.setEstado(estadoNuevo);
             if (resumen.getEstado() != Resumen.ESTADO.Entregado) resumen.setResenaPublica(null);
+            if (estadoAnterior != estadoNuevo) {
+                NotificacionService.notificarCambioEstado(em, resumen, estadoAnterior, estadoNuevo);
+            }
             em.getTransaction().commit();
  
             List<Dispositivo> dispositivos = dispositivoDAO.listarPorResumen(id);
@@ -341,10 +346,14 @@ public class ResumenService extends HttpServlet {
                         "solo se puede reseñar un ticket cuando su estado es Entregado");
             }
  
+            boolean esPrimeraResena = resumen.getCalificacion() == null;
             resumen.setResenaComentario(comentario == null || comentario.isBlank() ? null
                     : Util.ValidationUtil.requiredText(comentario, "resenaComentario", 1_000));
             resumen.setCalificacion(calificacion);
             resumen.setResenaPublica(null);
+            if (esPrimeraResena) {
+                NotificacionService.notificarResena(em, resumen);
+            }
             em.getTransaction().commit();
  
             List<Dispositivo> dispositivos = dispositivoDAO.listarPorResumen(idResumen);
@@ -408,6 +417,7 @@ public class ResumenService extends HttpServlet {
                 imagen.setTipo(Imagen.TipoImagen.valueOf(tipo.name()));
             }
             em.persist(imagen);
+            NotificacionService.notificarImagen(em, resumen, imagen);
             em.getTransaction().commit();
             return Mappers.toDTO(imagen);
         } catch (IllegalArgumentException e) {
@@ -430,6 +440,10 @@ public class ResumenService extends HttpServlet {
         EntityManager em = ManejadorConexiones.getEntityManager();
         try {
             em.getTransaction().begin();
+            em.createQuery("UPDATE Notificacion n SET n.imagen = null "
+                    + "WHERE n.imagen.id = :idImagen AND n.resumen.id = :idResumen")
+                    .setParameter("idImagen", idImagen)
+                    .setParameter("idResumen", idResumen).executeUpdate();
             int eliminadas = em.createQuery(
                     "DELETE FROM Imagen im WHERE im.id = :idImagen AND im.resumen.id = :idResumen")
                     .setParameter("idImagen", idImagen)
@@ -454,6 +468,8 @@ public class ResumenService extends HttpServlet {
             // Se borran primero los hijos (Dispositivo, Trabajo, Imagen,
             // Resumen_Dispositivos) para no violar las llaves foráneas hacia
             // Resumen.
+            em.createQuery("DELETE FROM Notificacion n WHERE n.resumen.id = :id")
+                    .setParameter("id", id).executeUpdate();
             em.createQuery("DELETE FROM Dispositivo d WHERE d.resumen.id = :id")
                     .setParameter("id", id).executeUpdate();
             em.createQuery("DELETE FROM Trabajo t WHERE t.resumen.id = :id")

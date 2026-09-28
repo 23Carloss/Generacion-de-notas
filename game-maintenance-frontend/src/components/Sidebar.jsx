@@ -16,7 +16,7 @@ const NAV_USUARIO = [
   { key: "perfil", label: "Mi perfil" },
 ];
 
-export default function Sidebar({ route, onNavigate, usuario, esAdmin, onLogout }) {
+export default function Sidebar({ route, onNavigate, usuario, esAdmin, onLogout, unreadCount = 0 }) {
   const nav = esAdmin ? NAV_ADMIN : NAV_USUARIO;
   const [open, setOpen] = useState(false);
   const dialog = useRef(null);
@@ -47,6 +47,14 @@ export default function Sidebar({ route, onNavigate, usuario, esAdmin, onLogout 
         aria-label={esAdmin ? "Game Maintenance: ir al panel general" : "Game Maintenance: ir a trabajos resueltos"}>
         Game Maintenance
       </a>
+      <button type="button" className={`notification-bell ${route === "notificaciones" ? "active" : ""}`}
+        aria-label={`Notificaciones${unreadCount ? `, ${unreadCount} sin leer` : ""}`}
+        onClick={() => onNavigate("notificaciones")}>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
+        </svg>
+        {unreadCount > 0 && <span className="notification-badge">{unreadCount > 99 ? "99+" : unreadCount}</span>}
+      </button>
       <span className="session-name">{usuario.nombre}</span>
     </header>
     <dialog ref={dialog} id="navigation-drawer" className="navigation-drawer" aria-label="Menú principal"
@@ -83,6 +91,10 @@ export default function Sidebar({ route, onNavigate, usuario, esAdmin, onLogout 
             {n.label}
           </button>
         ))}
+        <button className={`nav-item ${route === "notificaciones" ? "active" : ""}`}
+          aria-current={route === "notificaciones" ? "page" : undefined} onClick={() => go("notificaciones")}>
+          <span className="dot" />Notificaciones{unreadCount > 0 ? ` (${unreadCount})` : ""}
+        </button>
       </nav>
       <div className="sidebar-footer">
         {usuario && (

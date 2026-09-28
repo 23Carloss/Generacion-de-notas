@@ -21,6 +21,10 @@
      POST   /resumenes/{id}/imagenes body: { dataBase64, descripcion, tipo? } (solo ADMINISTRADOR; visibles para ambos roles)
      DELETE /resumenes/{id}/imagenes/{imagenId}                      (solo ADMINISTRADOR)
      DELETE /resumenes/{id}                                          (solo ADMINISTRADOR)
+     GET    /notificaciones?unread=true&page=0&size=20                (usuario autenticado)
+     GET    /notificaciones/unread-count                              (usuario autenticado)
+     PATCH  /notificaciones/{id}/read                                 (solo destinatario)
+     PATCH  /notificaciones/read-all                                  (solo destinatario)
 
    Todas las peticiones (salvo /auth/*) mandan "Authorization: Bearer <token>"
    automáticamente si hay una sesión activa (ver getToken()/setToken() abajo).
@@ -89,8 +93,8 @@ async function http(path, options = {}) {
 }
 
 /* ------------------------------- datos demo (solo si CONFIG.MOCK = true) ------------------------------- */
-let seq = { cliente: 100, dispositivo: 200, trabajo: 300, resumen: 400, imagen: 500 };
-const db = { clientes: [], resumenes: [] };
+let seq = { cliente: 100, dispositivo: 200, trabajo: 300, resumen: 400, imagen: 500, notificacion: 600 };
+const db = { clientes: [], resumenes: [], notificaciones: [] };
 
 function seed() {
   const carlos = { id: ++seq.cliente, nombre: "Carlos Beltrán", telefono: "6444343343", rol: "USUARIO" };
@@ -168,6 +172,29 @@ const MOCK_ADMIN = { id: 1, nombre: "Admin Demo", telefono: "6440000000", correo
 
 /* --------------------------------- API ------------------------------------ */
 export const Api = {
+  notificaciones: {
+    list: ({ unread = null, page = 0, size = 20 } = {}) => {
+      const unreadQuery = unread === null ? "" : `&unread=${unread}`;
+      if (!CONFIG.MOCK) return http(`/notificaciones?page=${page}&size=${size}${unreadQuery}`);
+      const filtered = unread === null ? db.notificaciones : db.notificaciones.filter((n) => n.leida === !unread);
+      return delay({
+        notificaciones: clone(filtered.slice(page * size, (page + 1) * size)),
+        pagina: page,
+        tamano: size,
+        total: filtered.length,
+        noLeidas: db.notificaciones.filter((n) => !n.leida).length,
+      });
+    },
+    unreadCount: () => CONFIG.MOCK
+      ? delay({ count: db.notificaciones.filter((n) => !n.leida).length })
+      : http("/notificaciones/unread-count"),
+    markRead: (id) => CONFIG.MOCK
+      ? delay((() => { const n = db.notificaciones.find((item) => item.id === id); if (n) n.leida = true; return clone(n); })())
+      : http(`/notificaciones/${id}/read`, { method: "PATCH" }),
+    markAllRead: () => CONFIG.MOCK
+      ? delay((() => { let updated = 0; db.notificaciones.forEach((n) => { if (!n.leida) { n.leida = true; updated++; } }); return { updated }; })())
+      : http("/notificaciones/read-all", { method: "PATCH" }),
+  },
   trabajosResueltos: {
     list: (pagina = 1, tamano = 12) => http(`/trabajos-resueltos?pagina=${pagina}&tamano=${tamano}`),
   },

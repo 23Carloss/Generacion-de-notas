@@ -56,6 +56,8 @@ public class ClienteDAO implements IGenericoDAO<Cliente, Long> {
         EntityManager em = ManejadorConexiones.getEntityManager();
         try {
             em.getTransaction().begin();
+            em.createQuery("DELETE FROM Notificacion n WHERE n.destinatario.id = :id")
+                    .setParameter("id", id).executeUpdate();
             Cliente cliente = em.find(Cliente.class, id);
             if (cliente != null) {
                 em.remove(cliente);

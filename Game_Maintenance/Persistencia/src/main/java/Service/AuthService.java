@@ -5,6 +5,7 @@
 
 package Service;
 
+import ConexionDB.ManejadorConexiones;
 import DAOs.ClienteDAO;
 import DTOs.ClienteDTO;
 import Exceptions.PersistenciaException;
@@ -12,6 +13,7 @@ import Exceptions.CredencialesInvalidasException;
 import Util.PasswordUtil;
 import Util.ValidationUtil;
 import hp.models.Cliente;
+import javax.persistence.EntityManager;
 
 /**
  *
@@ -91,7 +93,19 @@ public class AuthService {
         // reporte de la Etapa 1).
         cliente.setRol(Cliente.ROL.USUARIO);
  
-        clienteDAO.insertar(cliente);
+        EntityManager em = ManejadorConexiones.getEntityManager();
+        try {
+            em.getTransaction().begin();
+            em.persist(cliente);
+            em.flush();
+            NotificacionService.notificarRegistro(em, cliente);
+            em.getTransaction().commit();
+        } catch (Exception e) {
+            if (em.getTransaction().isActive()) em.getTransaction().rollback();
+            throw new PersistenciaException("Error al registrar el cliente: " + e.getMessage());
+        } finally {
+            em.close();
+        }
  
         // Por comodidad, registrarse también deja la sesión iniciada (evita
         // pedirle login inmediatamente después de crear la cuenta).

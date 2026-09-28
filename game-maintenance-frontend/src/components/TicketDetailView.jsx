@@ -20,9 +20,23 @@ export default function TicketDetailView({
   onRemoveImagen,
   onDelete,
   clientes,
+  focusSection,
 }) {
   const [confirming, setConfirming] = useState(false);
   const [editing, setEditing] = useState(false);
+
+  useEffect(() => {
+    if (resumen && focusSection === "imagenes") {
+      requestAnimationFrame(() => {
+        const target = document.getElementById("ticket-imagenes");
+        target?.scrollIntoView({
+          behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+          block: "start",
+        });
+        target?.focus({ preventScroll: true });
+      });
+    }
+  }, [resumen, focusSection]);
 
   if (!resumen) {
     return (
@@ -136,7 +150,7 @@ export default function TicketDetailView({
             </div>
           </div>
 
-          <div className="subblock">
+          <div className="subblock" id="ticket-imagenes" tabIndex={-1}>
             <h3>Fotos</h3>
             <GaleriaFotos
               imagenes={resumen.listaImagenes}

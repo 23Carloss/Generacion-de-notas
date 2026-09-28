@@ -8,6 +8,7 @@
     <class>hp.models.Resumen_Dispositivos</class>
     <class>hp.models.Trabajo</class>
     <class>hp.models.Imagen</class>
+    <class>hp.models.Notificacion</class>
     <class>hp.models.Pieza</class>
     
     <properties>

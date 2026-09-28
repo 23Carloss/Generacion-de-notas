@@ -9,26 +9,32 @@ import LoginView from "./components/Loginview";
 import RegisterView from "./components/RegisterView";
 import PerfilView from "./components/PerfilView";
 import TrabajosResueltosView from "./components/TrabajosResueltosView";
+import NotificacionesView from "./components/NotificacionesView";
 import { Api, getToken } from "./api";
 
 function parseHash() {
   const h = window.location.hash.replace(/^#\/?/, "");
   if (h.startsWith("ticket/")) {
-    return { route: "ticket", ticketId: Number(h.split("/")[1]) };
+    const [, id, section] = h.split("/");
+    return { route: "ticket", ticketId: Number(id), clientId: null, section: section || null };
   }
-  if (["dashboard", "nuevo", "tickets", "clientes", "perfil", "login", "registro", "resueltos"].includes(h)) {
-    return { route: h, ticketId: null };
+  if (h.startsWith("cliente/")) {
+    return { route: "clientes", ticketId: null, clientId: Number(h.split("/")[1]), section: null };
   }
-  return { route: "dashboard", ticketId: null };
+  if (["dashboard", "nuevo", "tickets", "clientes", "perfil", "login", "registro", "resueltos", "notificaciones"].includes(h)) {
+    return { route: h, ticketId: null, clientId: null, section: null };
+  }
+  return { route: "dashboard", ticketId: null, clientId: null, section: null };
 }
 
 export default function App() {
-  const [{ route, ticketId }, setRouteState] = useState(parseHash());
+  const [{ route, ticketId, clientId, section }, setRouteState] = useState(parseHash());
   const [usuario, setUsuario] = useState(null);
   const [clientes, setClientes] = useState([]);
   const [resumenes, setResumenes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadErrors, setLoadErrors] = useState({});
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // sesionActiva revisa tanto el usuario guardado como que exista un token:
   // si el token se limpió (por un 401) pero el usuario seguía en el estado
@@ -43,13 +49,15 @@ export default function App() {
     try {
       const resumenesPromise = Api.resumenes.list();
       const clientesPromise = esAdmin ? Api.clientes.list() : Promise.resolve([]);
-      const [r, c] = await Promise.allSettled([resumenesPromise, clientesPromise]);
+      const notificacionesPromise = Api.notificaciones.unreadCount();
+      const [r, c, n] = await Promise.allSettled([resumenesPromise, clientesPromise, notificacionesPromise]);
       if (!getToken()) return;
       const errors = {};
       if (r.status === "fulfilled") setResumenes(r.value);
       else errors.tickets = "No se pudieron cargar los tickets. Intenta nuevamente; si continúa, contacta al administrador.";
       if (c.status === "fulfilled") { if (esAdmin) setClientes(c.value); }
       else errors.clientes = "No se pudieron cargar los clientes. Intenta nuevamente; si continúa, contacta al administrador.";
+      if (n.status === "fulfilled") setUnreadCount(n.value.count || 0);
       setLoadErrors(errors);
     } finally {
       setLoading(false);
@@ -59,6 +67,19 @@ export default function App() {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (!sesionActiva) return undefined;
+    const timer = window.setInterval(async () => {
+      try {
+        const data = await Api.notificaciones.unreadCount();
+        setUnreadCount(data.count || 0);
+      } catch {
+        // El centro conserva su propio estado de error; el sondeo no interrumpe la pantalla actual.
+      }
+    }, 30000);
+    return () => window.clearInterval(timer);
+  }, [sesionActiva]);
 
   useEffect(() => {
     const onHashChange = () => setRouteState(parseHash());
@@ -71,6 +92,7 @@ export default function App() {
       setUsuario(null);
       setResumenes([]);
       setClientes([]);
+      setUnreadCount(0);
       navigate("login");
     }
     window.addEventListener("gm:unauthorized", onUnauthorized);
@@ -99,6 +121,7 @@ export default function App() {
     setUsuario(null);
     setResumenes([]);
     setClientes([]);
+    setUnreadCount(0);
     navigate("login");
   }
 
@@ -167,6 +190,14 @@ export default function App() {
     navigate("tickets");
   }
 
+  function openNotificationTarget(notificacion) {
+    if (notificacion.ticketId) {
+      navigate(`ticket/${notificacion.ticketId}${notificacion.tipo === "IMAGEN_TICKET_AGREGADA" ? "/imagenes" : ""}`);
+    } else if (esAdmin && notificacion.clienteRelacionadoId) {
+      navigate(`cliente/${notificacion.clienteRelacionadoId}`);
+    }
+  }
+
   // ----- sin sesión: solo login / registro -----
   if (!sesionActiva) {
     return route === "registro" ? (
@@ -194,9 +225,12 @@ export default function App() {
         usuario={usuario}
         esAdmin={esAdmin}
         onLogout={cerrarSesion}
+        unreadCount={unreadCount}
       />
       <main className="main" id="contenido" tabIndex={-1}>
-        {rutaEfectiva === "resueltos" ? (
+        {rutaEfectiva === "notificaciones" ? (
+          <NotificacionesView onOpen={openNotificationTarget} onCountChange={setUnreadCount} />
+        ) : rutaEfectiva === "resueltos" ? (
           <TrabajosResueltosView />
         ) : rutaEfectiva === "perfil" ? (
           <PerfilView usuario={usuario} onUpdate={handleUpdatePerfil} />
@@ -230,6 +264,7 @@ export default function App() {
             onRemoveImagen={handleRemoveImagen}
             onDelete={handleDeleteTicket}
             clientes={clientes}
+            focusSection={section}
           />
         ) : rutaEfectiva === "clientes" ? (
           <ClientesView
@@ -241,6 +276,7 @@ export default function App() {
             onUpdate={handleUpdateCliente}
             onRemove={handleRemoveCliente}
             onOpenTicket={openTicket}
+            initialSelectedId={clientId}
           />
         ) : rutaEfectiva === "nuevo" ? (
           <NuevoTicketView

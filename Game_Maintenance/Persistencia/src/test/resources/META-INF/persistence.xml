@@ -9,6 +9,7 @@
     <class>hp.models.Imagen</class>
     <class>hp.models.Pieza</class>
     <class>hp.models.Resumen_Dispositivos</class>
+    <class>hp.models.Notificacion</class>
     <exclude-unlisted-classes>true</exclude-unlisted-classes>
     <properties>
       <property name="javax.persistence.jdbc.driver" value="org.h2.Driver"/>

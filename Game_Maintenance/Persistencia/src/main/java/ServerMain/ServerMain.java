@@ -4,6 +4,7 @@ import Servlets.ClienteServlet;
 import Servlets.ResumenServlet;
 import ConexionDB.ManejadorConexiones;
 import Servlets.AuthServlet;
+import Servlets.NotificacionServlet;
 import Util.AuthFilter;
 import Util.ErrorHandlingFilter;
 import Util.RequestSizeFilter;
@@ -49,11 +50,13 @@ public class ServerMain {
         contexto.addFilter(authFilterHolder, "/api/clientes/*", EnumSet.of(DispatcherType.REQUEST));
         contexto.addFilter(authFilterHolder, "/api/resumenes/*", EnumSet.of(DispatcherType.REQUEST));
         contexto.addFilter(authFilterHolder, "/api/trabajos-resueltos/*", EnumSet.of(DispatcherType.REQUEST));
+        contexto.addFilter(authFilterHolder, "/api/notificaciones/*", EnumSet.of(DispatcherType.REQUEST));
  
         contexto.addServlet(new ServletHolder(new AuthServlet()), "/api/auth/*");
         contexto.addServlet(new ServletHolder(new ClienteServlet()), "/api/clientes/*");
         contexto.addServlet(new ServletHolder(new ResumenServlet()), "/api/resumenes/*");
         contexto.addServlet(new ServletHolder(new Servlets.TrabajosResueltosServlet()), "/api/trabajos-resueltos/*");
+        contexto.addServlet(new ServletHolder(new NotificacionServlet()), "/api/notificaciones/*");
  
         Runtime.getRuntime().addShutdownHook(new Thread(ManejadorConexiones::cerrar));
  

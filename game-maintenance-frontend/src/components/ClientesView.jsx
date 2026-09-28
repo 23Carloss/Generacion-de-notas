@@ -1,15 +1,21 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import EmptyState from "./EmptyState";
 import { ROLES } from "../constants";
 import PhoneField from "./PhoneField";
 import { joinPhone, splitPhone } from "../phone";
 import { LIMITS } from "../formValidation";
 
-export default function ClientesView({ clientes, resumenes, ticketsError, onRetry, onCreate, onUpdate, onRemove, onOpenTicket }) {
+export default function ClientesView({ clientes, resumenes, ticketsError, onRetry, onCreate, onUpdate, onRemove, onOpenTicket, initialSelectedId }) {
   const [query, setQuery] = useState("");
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(null);
   const [clienteSeleccionadoId, setClienteSeleccionadoId] = useState(null);
+
+  useEffect(() => {
+    if (initialSelectedId && clientes.some((c) => c.id === initialSelectedId)) {
+      setClienteSeleccionadoId(initialSelectedId);
+    }
+  }, [initialSelectedId, clientes]);
 
   const q = query.toLowerCase();
   const list = q
