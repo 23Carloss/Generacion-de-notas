@@ -93,9 +93,15 @@ public final class NotificationSchemaInitializer {
                 + "FROM Notificacion WHERE 1 = 0")) {
             int idType = rows.getMetaData().getColumnType(1);
             int readType = rows.getMetaData().getColumnType(6);
-            if (idType != Types.BIGINT || readType != Types.BOOLEAN) {
+            // PostgreSQL's JDBC driver exposes the native bool type as Types.BIT,
+            // while H2 and other drivers commonly expose it as Types.BOOLEAN.
+            if (idType != Types.BIGINT || !isBooleanJdbcType(readType)) {
                 throw new SQLException("La tabla Notificacion existente no tiene el formato esperado.", "42804");
             }
         }
+    }
+
+    static boolean isBooleanJdbcType(int jdbcType) {
+        return jdbcType == Types.BOOLEAN || jdbcType == Types.BIT;
     }
 }

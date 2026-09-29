@@ -6,10 +6,17 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.sql.Types;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class NotificationSchemaMigrationTest {
+
+    @Test void acceptsBooleanTypesReportedByPostgresAndH2Drivers() {
+        assertTrue(NotificationSchemaInitializer.isBooleanJdbcType(Types.BIT));
+        assertTrue(NotificationSchemaInitializer.isBooleanJdbcType(Types.BOOLEAN));
+        assertFalse(NotificationSchemaInitializer.isBooleanJdbcType(Types.SMALLINT));
+    }
 
     @Test void postgresqlMigrationIsAdditiveAndIdempotent() throws Exception {
         try (Connection connection = DriverManager.getConnection(
