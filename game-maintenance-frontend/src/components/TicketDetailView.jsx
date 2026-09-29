@@ -24,6 +24,8 @@ export default function TicketDetailView({
 }) {
   const [confirming, setConfirming] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [estadoError, setEstadoError] = useState("");
+  const [actualizandoEstado, setActualizandoEstado] = useState(false);
 
   useEffect(() => {
     if (resumen && focusSection === "imagenes") {
@@ -50,6 +52,18 @@ export default function TicketDetailView({
   }
 
   const total = totalTicket(resumen);
+
+  async function actualizarEstado(value) {
+    setEstadoError("");
+    setActualizandoEstado(true);
+    try {
+      await onUpdateEstado(resumen.id, value);
+    } catch (e) {
+      setEstadoError(e?.message || "No se pudo actualizar el estado del ticket.");
+    } finally {
+      setActualizandoEstado(false);
+    }
+  }
 
   if (editing) {
     return (
@@ -179,9 +193,11 @@ export default function TicketDetailView({
                 label="Actualizar estado"
                 menuLabel="Selecciona un estado"
                 value={resumen.estado}
-                onChange={(value) => onUpdateEstado(resumen.id, value)}
+                onChange={actualizarEstado}
+                disabled={actualizandoEstado}
                 options={ESTADOS.map((value) => ({ value, label: value }))}
               />
+              {estadoError && <div className="error-text" role="alert">{estadoError}</div>}
             </div>
           )}
           <div className="field">

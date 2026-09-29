@@ -23,6 +23,17 @@ class NotificationSchemaMigrationTest {
         }
     }
 
+    @Test void startupInitializerIsAdditiveAndIdempotent() throws Exception {
+        try (Connection connection = DriverManager.getConnection(
+                "jdbc:h2:mem:notification_startup;MODE=PostgreSQL", "sa", "");
+                Statement sql = connection.createStatement()) {
+            createReferencedTables(sql);
+            NotificationSchemaInitializer.migrate(connection, false);
+            NotificationSchemaInitializer.migrate(connection, false);
+            assertNotificationTableWorks(sql);
+        }
+    }
+
     @Test void mysqlMigrationCreatesPersistentRelationsAndIndexes() throws Exception {
         try (Connection connection = DriverManager.getConnection(
                 "jdbc:h2:mem:notification_mysql;MODE=MySQL", "sa", "");

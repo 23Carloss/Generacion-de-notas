@@ -29,6 +29,7 @@ public class ManejadorConexiones {
                 if (emFactory == null) {
                     var properties = AppConfig.databaseProperties();
                     Migration.PortfolioSchemaRepair.runIfEnabled(properties);
+                    Migration.NotificationSchemaInitializer.ensure(properties);
                     emFactory = Persistence.createEntityManagerFactory("TicketsPU", properties);
                 }
             }
